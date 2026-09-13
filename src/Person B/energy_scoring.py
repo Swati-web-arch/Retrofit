@@ -235,7 +235,7 @@ def estimate_energy_savings(
 
     # Contextual adjustments based on verified engineering and EESL rows
     if canon_retrofit == "Chiller_Optimization":
-        if any(w in hvac_desc for w in ["constant", "reciprocating", "old", "no vfd", "screw"]):
+        if any(w in hvac_desc for w in ["constant", "reciprocating", "old", "no vfd", "without vfd", "screw"]):
             predicted_savings_pct = max(predicted_savings_pct, 34.5)
             basis_notes.append("Constant-speed baseline chiller confirmed from EESL pattern")
         elif any(w in hvac_desc for w in ["split", "window", "dx"]):
@@ -268,6 +268,46 @@ def estimate_energy_savings(
             predicted_savings_pct = max(predicted_savings_pct, 33.0)
             basis_notes.append("Sub-optimal/manual controls baseline")
 
+    # Building age: an older baseline system has typically degraded further
+    # from its rated efficiency, so the same retrofit measure recovers a
+    # larger share of consumption. `building_age` is collected by the app's
+    # Building Characteristics form but was previously unused by every
+    # scoring axis in the project, including this one.
+    age = building.get("building_age")
+    if age is not None:
+        try:
+            age = float(age)
+        except (TypeError, ValueError):
+            age = None
+    if age is not None:
+        if age >= 30:
+            predicted_savings_pct += 3.0
+            basis_notes.append("Baseline system age >=30 yrs: larger recoverable inefficiency assumed")
+        elif age >= 20:
+            predicted_savings_pct += 1.5
+            basis_notes.append("Baseline system age 20-30 yrs: moderately larger recoverable inefficiency assumed")
+        elif age < 10:
+            predicted_savings_pct -= 1.5
+            basis_notes.append("Baseline system age <10 yrs: recently serviced equipment, smaller recoverable inefficiency assumed")
+
+    # HVAC distribution: data/processed/buildheat_clean.csv (16 EU
+    # building-retrofit case studies) shows decentralized/localized
+    # baseline systems achieving noticeably larger relative reductions
+    # after retrofit than centralized ones (grouping pre_hvac_type into
+    # Centralized/Decentralized: ~79.4% vs ~62.9% total primary-energy
+    # reduction). Applied here toned down, since BuildHeat is a
+    # cross-domain (EU residential heating retrofit) directional proxy
+    # rather than a same-domain regression input. `hvac_distribution` was
+    # previously collected by the app but unused by every scoring axis.
+    dist = str(building.get("hvac_distribution", "")).lower()
+    if any(w in dist for w in ["decentral", "local", "split", "vrf", "window"]):
+        predicted_savings_pct *= 1.10
+        basis_notes.append("Localized/decentralized HVAC distribution: larger relative-savings potential (BuildHeat dataset pattern)")
+    elif "central" in dist:
+        predicted_savings_pct *= 0.95
+        basis_notes.append("Centralized HVAC distribution: comparatively smaller relative-savings potential (BuildHeat dataset pattern)")
+
+    predicted_savings_pct = float(np.clip(predicted_savings_pct, 10.0, 45.0))
     predicted_savings_pct = round(float(predicted_savings_pct), 2)
     saved_kwh = round(baseline_kwh * (predicted_savings_pct / 100.0), 2)
     post_kwh = round(max(0.0, baseline_kwh - saved_kwh), 2)

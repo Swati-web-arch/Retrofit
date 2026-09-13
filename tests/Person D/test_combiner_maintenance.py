@@ -39,24 +39,29 @@ def test_maintenance_unknown_option_raises():
 
 
 def test_maintenance_fallback_when_no_label():
-    """A building with no maintenance_reduction_score falls back to the
-    EESL group average for that measure, still within the valid 1-5 range."""
+    """A building with no maintenance_reduction_score (and no age/hvac_type/
+    hvac_distribution context, so no contextual adjustment fires either)
+    falls back to the EESL group average for that measure, rounded to a
+    whole number -- still within the valid 1-5 range. Maintenance now
+    returns an int, consistent with every other axis (it previously
+    returned a two-decimal float like 4.19)."""
     building = {}
     for option in RETROFIT_COLUMNS:
         score = maintenance_score(building, option)
         assert 1 <= score <= 5
-        assert score == round(float(_maintenance_means[option]), 2)
+        assert isinstance(score, int)
+        assert score == int(round(float(_maintenance_means[option])))
 
 
 def test_maintenance_uses_direct_label_when_option_was_implemented():
     """If the building's own label corresponds to a retrofit option it
     actually implemented, that direct label should be used instead of the
-    group average."""
+    group average (rounded to a whole number, like the fallback case)."""
     building = {
         "maintenance_reduction_score": 4.5,
         "retrofit_ahu_vfd": 1,
     }
-    assert maintenance_score(building, "AHU_VFD") == 4.5
+    assert maintenance_score(building, "AHU_VFD") == 5  # round-half-up(4.5)
 
 
 def test_maintenance_ignores_direct_label_for_a_different_option():
@@ -69,8 +74,8 @@ def test_maintenance_ignores_direct_label_for_a_different_option():
         # Chiller_Optimization was NOT implemented by this building
     }
     score = maintenance_score(building, "Chiller_Optimization")
-    assert score == round(float(_maintenance_means["Chiller_Optimization"]), 2)
-    assert score != 4.5
+    assert score == int(round(float(_maintenance_means["Chiller_Optimization"])))
+    assert score != 5
 
 
 def test_maintenance_reads_measures_implemented_list():
@@ -81,8 +86,33 @@ def test_maintenance_reads_measures_implemented_list():
         "maintenance_reduction_score": 4.2,
         "retrofit_measures_implemented": "DCV;Smart_Controls",
     }
-    assert maintenance_score(building, "DCV") == 4.2
-    assert maintenance_score(building, "AHU_VFD") != 4.2
+    assert maintenance_score(building, "DCV") == 4  # round-half-up(4.2)
+    assert maintenance_score(building, "AHU_VFD") == int(round(float(_maintenance_means["AHU_VFD"])))
+
+
+def test_maintenance_responds_to_building_age():
+    """building_age was previously collected by the app but had zero
+    effect on any scoring axis. An older baseline system should now score
+    a higher maintenance-reduction potential than a newer one for the same
+    retrofit option."""
+    young = maintenance_score({"building_age": 5}, "Chiller_Optimization")
+    old = maintenance_score({"building_age": 35}, "Chiller_Optimization")
+    assert old > young
+
+
+def test_maintenance_responds_to_hvac_distribution():
+    """hvac_distribution was previously collected by the app but read by
+    no scoring axis at all. Centralized vs. localized should now move the
+    score for a central-plant-specific measure like Chiller_Optimization."""
+    centralized = maintenance_score(
+        {"hvac_distribution": "Centralized (central plant serving the whole building)"},
+        "Chiller_Optimization",
+    )
+    localized = maintenance_score(
+        {"hvac_distribution": "Localized (Split, Window, or VRF units per zone)"},
+        "Chiller_Optimization",
+    )
+    assert centralized > localized
 
 
 # =====================================================================
