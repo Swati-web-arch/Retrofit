@@ -40,11 +40,11 @@ EESL_DEFAULT_ELECTRICITY_TARIFF_INR = 9.00
 # Benchmark CAPEX per m2 (INR/m2) derived from EESL project measures
 # Total package average in EESL is ~1,264 INR/m2 for combined measures
 DEFAULT_CAPEX_PER_M2_INR = {
-    "Smart_Controls": 450.0,
-    "AHU_VFD": 550.0,
-    "DCV": 600.0,
-    "Zoning_Optimization": 750.0,
-    "Chiller_Optimization": 1100.0,
+    "Smart_Controls": 1264.1,
+    "AHU_VFD": 1299.7,
+    "DCV": 1391.2,
+    "Chiller_Optimization": 1370.8,
+    "Zoning_Optimization": 1229.9,
 }
 
 
@@ -96,6 +96,8 @@ def analyze_cost_benefit(
     tariff = float(tariff)
 
     annual_cost_savings = round(saved_kwh * tariff, 2)
+    baseline_annual_opcost_inr = round(energy_est["baseline_annual_kwh"] * tariff, 2)
+    post_annual_opcost_inr = round(energy_est["post_annual_kwh"] * tariff, 2)
 
     area = float(
         building.get("floor_area")
@@ -138,17 +140,52 @@ def analyze_cost_benefit(
     )
 
     return {
-        "retrofit_option": canon_retrofit,
-        "annual_energy_saved_kwh": saved_kwh,
-        "electricity_tariff_inr_kwh": tariff,
-        "annual_cost_savings_inr": annual_cost_savings,
-        "capex_inr": investment,
-        "payback_years": payback,
-        "cost_benefit_score": score,
-        "currency": "INR",
-        "financial_summary": summary,
-    }
+    "retrofit_option": canon_retrofit,
+    "annual_energy_saved_kwh": saved_kwh,
+    "electricity_tariff_inr_kwh": tariff,
+    "baseline_annual_opcost_inr": baseline_annual_opcost_inr,   # new
+    "post_annual_opcost_inr": post_annual_opcost_inr,           # new
+    "annual_cost_savings_inr": annual_cost_savings,
+    "capex_inr": investment,
+    "payback_years": payback,
+    "cost_benefit_score": score,
+    "currency": "INR",
+    "financial_summary": summary,
+}
 
+def _relative_cost_benefit_scores(
+    building: Dict[str, Any],
+    electricity_price_inr: Optional[float] = None,
+    capex_inr: Optional[float] = None,
+) -> Dict[str, int]:
+    """Score Cost Benefit RELATIVELY across the full catalog for this
+    building, rather than against fixed absolute payback-year cutoffs.
+
+    Rationale (documented assumption for the technical report): real EESL
+    paybacks cluster tightly (2.7-3.4 years across all 16 projects, std
+    only 0.17) -- fixed year-cutoffs calibrated on a wider assumed range
+    end up saturating every option at the same score. Ranking the 5
+    candidate options against each other for THIS building's own numbers
+    gives a meaningfully discriminating score even though the absolute
+    paybacks are all in a similar ballpark.
+    """
+    paybacks = {}
+    for option in RETROFIT_CATALOG:
+        result = analyze_cost_benefit(
+            building, option,
+            electricity_price_inr=electricity_price_inr,
+            capex_inr=capex_inr,
+        )
+        paybacks[option] = result["payback_years"]
+
+    # Rank ascending (fastest payback = best = highest score)
+    ranked = sorted(paybacks.items(), key=lambda kv: kv[1])
+    n = len(ranked)
+    scores = {}
+    for i, (option, _) in enumerate(ranked):
+        # Evenly spread rank position across 1-5, fastest gets 5
+        scores[option] = round(5 - (4 * i / max(n - 1, 1)))
+    return scores
 
 def cost_benefit_score(
     building: Dict[str, Any],
@@ -157,28 +194,17 @@ def cost_benefit_score(
     capex_inr: Optional[float] = None,
 ) -> int:
     """
-    Calculate Cost Benefit Score (1–5) for a specific retrofit option.
-
-    Parameters
-    ----------
-    building : dict
-        Building features dictionary.
-    retrofit_option : str
-        Target retrofit option name.
-
-    Returns
-    -------
-    int
-        Score from 1 to 5.
+    Calculate Cost Benefit Score (1-5) for a specific retrofit option,
+    scored RELATIVE to the other 4 catalog options for this building
+    (see _relative_cost_benefit_scores docstring for rationale).
     """
-    result = analyze_cost_benefit(
+    canon_retrofit = normalize_retrofit_name(retrofit_option)
+    all_scores = _relative_cost_benefit_scores(
         building,
-        retrofit_option,
         electricity_price_inr=electricity_price_inr,
         capex_inr=capex_inr,
     )
-    return int(result["cost_benefit_score"])
-
+    return all_scores[canon_retrofit]
 
 def score_all_cost_benefit_retrofits(
     building: Dict[str, Any],

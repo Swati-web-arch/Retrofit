@@ -41,6 +41,20 @@ if not EESL_FILE.exists():
     )
 _eesl = pd.read_csv(EESL_FILE)
 
+# NOTE on why this axis is group-average-only (confirmed, not accidental):
+# The EESL dataset's only maintenance column is `maintenance_reduction_score`,
+# which is the label itself (range 3.9-4.5, std=0.15 across 16 rows). There
+# are no building-level predictive features (equipment age, service frequency,
+# condition rating, historical downtime, etc.) that could drive a per-building
+# regression the way energy_scoring uses EUI/area/floors. Making this building-
+# responsive would require data that doesn't exist in any of the project
+# datasets. The group-average fallback is therefore the correct and only
+# defensible approach until richer maintenance data becomes available.
+#
+# Rounding: returns round(float, 2), consistent with comfort_score and
+# sustainability_score. energy_score and cost_benefit_score return int because
+# they use discrete threshold-based bins — this is an intentional design
+# difference, not an inconsistency.
 _maintenance_means = {}
 for _retrofit, _column in RETROFIT_COLUMNS.items():
     _subset = _eesl[_eesl[_column] == 1]

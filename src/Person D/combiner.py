@@ -31,7 +31,20 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
+# ===========================================================================
+# 1. ENVIRONMENT & PATH SETUP (MUST REMAIN AT VERY TOP OF FILE)
+# ===========================================================================
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Add teammate packages with relative/plain imports to sys.path immediately,
+# ensuring any Person B/D module imports succeed regardless of import position.
+_PERSON_B_DIR = PROJECT_ROOT / "src" / "Person B"
+if str(_PERSON_B_DIR) not in sys.path:
+    sys.path.insert(0, str(_PERSON_B_DIR))
+
+_PERSON_D_DIR = PROJECT_ROOT / "src" / "Person D"
+if str(_PERSON_D_DIR) not in sys.path:
+    sys.path.insert(0, str(_PERSON_D_DIR))
 
 
 def _load_module(name: str, path: Path):
@@ -41,10 +54,7 @@ def _load_module(name: str, path: Path):
 
     Raises a clear, actionable RuntimeError instead of letting a bare
     FileNotFoundError/ImportError surface from deep inside importlib's
-    internals -- this is the exact failure mode that broke the app when
-    Person C's folder moved (see git history): the traceback pointed at
-    <frozen importlib._bootstrap_external>, not at the actual missing path,
-    which made it slow to diagnose.
+    internals.
     """
     if not path.exists():
         raise RuntimeError(
@@ -66,6 +76,10 @@ def _load_module(name: str, path: Path):
         ) from exc
 
 
+# ===========================================================================
+# 2. CROSS-PERSON SCORING & UTILITY IMPORTS
+# ===========================================================================
+# Person A & Person C (folders contain spaces -> loaded via _load_module)
 _person_a = _load_module(
     "person_a", PROJECT_ROOT / "src" / "Person A" / "inefficiency_detection.py"
 )
@@ -76,23 +90,25 @@ _person_c = _load_module(
 _person_d_maintenance = _load_module(
     "person_d_maintenance", PROJECT_ROOT / "src" / "Person D" / "maintenance.py"
 )
-maintenance_score = _person_d_maintenance.maintenance_score
 
-# Person B is done -- their package has internal relative imports
-# (cost_benefit.py does `from .energy_scoring import ...`), so rather than
-# importlib-loading each file separately (which breaks relative imports),
-# add their directory to sys.path and import it the same way their own
-# tests do (tests/Person B/test_energy_cost.py uses this exact pattern).
-_PERSON_B_DIR = PROJECT_ROOT / "src" / "Person B"
-if str(_PERSON_B_DIR) not in sys.path:
-    sys.path.insert(0, str(_PERSON_B_DIR))
-
+# Person B (plain imports resolved via _PERSON_B_DIR in sys.path above)
 from energy_scoring import energy_score  # noqa: E402
-from cost_benefit import cost_benefit_score  # noqa: E402
+from cost_benefit import analyze_cost_benefit, cost_benefit_score  # noqa: E402
+from eui_benchmark import classify_eui  # noqa: E402
 
+# Export canonical scoring and detection functions
 detect_inefficiencies = _person_a.detect_inefficiencies
 comfort_score = _person_c.comfort_score
 sustainability_score = _person_c.sustainability_score
+maintenance_score = _person_d_maintenance.maintenance_score
+
+
+def detect_conditions(telemetry_df: Any) -> Dict[str, Any]:
+    """Wrapper so app.py doesn't need its own import gymnastics.
+    Calls Person A's detect_inefficiencies with return_details=True.
+    """
+    return detect_inefficiencies(telemetry_df, return_details=True)
+
 
 RETROFIT_CATALOG = [
     "Smart_Controls",
@@ -137,20 +153,13 @@ def filter_catalog(inefficiency_flags: Dict[str, int]) -> list:
 
 
 def score_option(building_features: Dict[str, Any], option: str, weights: Dict[str, float]) -> Dict[str, Any]:
-    """Run all five axis scorers on one retrofit option and combine them.
-
-    `building_features` here is expected to already include Person A's
-    inefficiency flags merged in (see recommend_retrofits) -- Person B's
-    energy_scoring.py reads building.get("poor_zoning", 0),
-    building.get("ventilation_imbalance", 0), and
-    building.get("economizer_fault", 0) directly to adjust its estimate,
-    so those keys need to reach it.
-    """
     energy = energy_score(building_features, option)
     comfort = comfort_score(building_features, option)
-    cost_benefit = cost_benefit_score(building_features, option)
     sustainability = sustainability_score(building_features, option)
     maintenance = maintenance_score(building_features, option)
+
+    financials = analyze_cost_benefit(building_features, option)
+    cost_benefit = financials["cost_benefit_score"]
 
     final_score = (
         weights["energy"] * energy
@@ -168,6 +177,10 @@ def score_option(building_features: Dict[str, Any], option: str, weights: Dict[s
         "Sustainability": sustainability,
         "Maintenance": maintenance,
         "Final Score": round(final_score, 3),
+        "Baseline Annual Cost (INR)": financials["baseline_annual_opcost_inr"],
+        "Post-Retrofit Annual Cost (INR)": financials["post_annual_opcost_inr"],
+        "Annual Savings (INR)": financials["annual_cost_savings_inr"],
+        "Payback (Years)": financials["payback_years"],
     }
 
 
