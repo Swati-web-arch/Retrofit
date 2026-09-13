@@ -5,15 +5,36 @@ data/raw/*.zip
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
 venv/
 .venv/
-*.egg-info/
+env/
+
+# Testing / caching
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
 
 # Editor/OS
 .vscode/
+.idea/
 .DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
 
 # Streamlit
 .streamlit/

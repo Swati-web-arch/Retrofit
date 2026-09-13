@@ -31,6 +31,14 @@ RETROFIT_COLUMNS = {
     "Zoning_Optimization": "retrofit_zoning_opt",
 }
 
+if not EESL_FILE.exists():
+    raise FileNotFoundError(
+        f"maintenance.py expected the EESL dataset at {EESL_FILE} but it "
+        f"isn't there. This file is loaded at import time (module-level), "
+        f"so anything that imports maintenance.py -- including combiner.py "
+        f"-- will fail immediately with this same error until the path is "
+        f"fixed or the CSV is restored."
+    )
 _eesl = pd.read_csv(EESL_FILE)
 
 _maintenance_means = {}

@@ -3,8 +3,13 @@ Interface
 =========
 Person D — Retrofit Recommendation Engine
 
-Streamlit app: enter building characteristics, adjust the 5 axis weights
-with sliders, and see the ranked retrofit table.
+Streamlit app: enter building characteristics, adjust the 5 axis weights,
+and see the ranked retrofit table.
+
+Axis weights are NOT auto-normalized. Each slider can be individually
+locked (frozen at its current value) while you adjust the others, but the
+five raw values must sum to exactly 1.00 before recommendations will run --
+see the sidebar for the live sum and error state.
 
 Run with:
     streamlit run app.py
@@ -21,46 +26,149 @@ st.caption(
 )
 
 # ---------------------------------------------------------------------------
-# Sidebar: axis weights (brief's reference weights are the defaults; sliders
-# let the user override them -- "matches the reference scoring example in
-# the problem brief")
+# Sidebar: axis weights.
+#
+# Each axis has a "Lock" toggle next to its slider. Locking disables that
+# slider (it can't be dragged) but keeps whatever value it already has --
+# useful for pinning a weight you're happy with while you experiment with
+# the rest. Weights are used exactly as entered: there is no behind-the-
+# scenes normalization anymore, so the five sliders must add up to exactly
+# 1.00 or "Get Recommendations" stays disabled and a red error shows below.
 # ---------------------------------------------------------------------------
 st.sidebar.header("Axis Weights")
-w_energy = st.sidebar.slider("Energy", 0.0, 1.0, DEFAULT_WEIGHTS["energy"], 0.05)
-w_comfort = st.sidebar.slider("Comfort", 0.0, 1.0, DEFAULT_WEIGHTS["comfort"], 0.05)
-w_cost = st.sidebar.slider("Cost Benefit", 0.0, 1.0, DEFAULT_WEIGHTS["cost_benefit"], 0.05)
-w_sustainability = st.sidebar.slider("Sustainability", 0.0, 1.0, DEFAULT_WEIGHTS["sustainability"], 0.05)
-w_maintenance = st.sidebar.slider("Maintenance", 0.0, 1.0, DEFAULT_WEIGHTS["maintenance"], 0.05)
-
-raw_total = w_energy + w_comfort + w_cost + w_sustainability + w_maintenance
-weights = (
-    {
-        "energy": w_energy / raw_total,
-        "comfort": w_comfort / raw_total,
-        "cost_benefit": w_cost / raw_total,
-        "sustainability": w_sustainability / raw_total,
-        "maintenance": w_maintenance / raw_total,
-    }
-    if raw_total > 0
-    else DEFAULT_WEIGHTS
+st.sidebar.caption(
+    "Lock an axis to freeze its value while you adjust the others. "
+    "The five weights must sum to exactly 1.00 to run."
 )
-st.sidebar.caption(f"Weights normalized to sum to 1.0 (raw sum: {raw_total:.2f})")
+
+AXES = [
+    ("energy", "Energy"),
+    ("comfort", "Comfort"),
+    ("cost_benefit", "Cost Benefit"),
+    ("sustainability", "Sustainability"),
+    ("maintenance", "Maintenance"),
+]
+
+weight_values = {}
+for _key, _label in AXES:
+    _locked = st.sidebar.toggle(f"Lock {_label}", key=f"lock_{_key}", value=False)
+    weight_values[_key] = st.sidebar.slider(
+        _label,
+        0.0,
+        1.0,
+        DEFAULT_WEIGHTS[_key],
+        0.05,
+        key=f"weight_{_key}",
+        disabled=_locked,
+    )
+
+raw_total = sum(weight_values.values())
+# Round before comparing -- slider steps of 0.05 can accumulate tiny
+# floating-point noise (e.g. 0.05 * 3 == 0.15000000000000002).
+weights_valid = round(raw_total, 2) == 1.00
+
+st.sidebar.markdown(f"**Sum of weights: {raw_total:.2f}** (must equal 1.00)")
+if weights_valid:
+    st.sidebar.success("Weights sum to 1.00 — ready to run.")
+else:
+    st.sidebar.error(
+        f"Weights sum to {raw_total:.2f}, not 1.00. Adjust the sliders "
+        f"above (or unlock a locked one) until they add up to exactly "
+        f"1.00. 'Get Recommendations' is disabled until then."
+    )
+
+# Used as-is -- no silent renormalization. If this isn't exactly 1.00,
+# the button below is disabled, so recommend_retrofits() is never called
+# with invalid weights.
+weights = weight_values
 
 # ---------------------------------------------------------------------------
-# Main form: building characteristics
+# Building Characteristics: dropdown options sourced from the project's
+# datasets rather than free text, so entries reliably match what the
+# scoring functions recognize (see src/Person B/eui_benchmark.py's
+# TYPOLOGY_MAP and src/Person B/energy_scoring.py's hvac_desc matching).
 # ---------------------------------------------------------------------------
+
+# (display label, internal value sent to building_features). Internal
+# values are exact BDG2/EESL-derived typology strings that
+# eui_benchmark.py's TYPOLOGY_MAP already recognizes case-insensitively --
+# the slash-free labels are display-only. "Other" lets the user type a
+# value that doesn't fit any bucket (falls back to the "Office" benchmark
+# per TYPOLOGY_MAP's default -- flagged to the user in the UI below).
+BUILDING_TYPE_OPTIONS = [
+    ("Office", "Office"),
+    ("Education", "Education"),
+    ("Healthcare", "Healthcare"),
+    ("Retail", "Retail"),
+    ("Food Sales and Service", "Food sales and service"),
+    ("Residential or Lodging", "Lodging/residential"),
+    ("Entertainment or Public Assembly", "Entertainment/public assembly"),
+    ("Public Services", "Public services"),
+    ("Warehouse or Storage", "Warehouse/storage"),
+    ("Manufacturing or Industrial", "Manufacturing/industrial"),
+    ("Technology or Science", "Technology/science"),
+    ("Religious Worship", "Religious worship"),
+    ("Utility", "Utility"),
+    ("Other", None),
+]
+
+# Representative baseline HVAC descriptions drawn from the real
+# baseline_hvac_type values in data/processed/eesl_commercial_retrofits_clean.csv.
+# The wording matters: energy_scoring.py's estimate_energy_savings() scans
+# this string for words like "constant", "reciprocating", "old", "screw",
+# "no vfd" (centralized, inefficient -> bigger Chiller_Optimization
+# savings) vs "split", "window", "dx" (localized/decentralized -> smaller
+# central-chiller savings), so these options were chosen to trigger that
+# logic the same way a real EESL row would.
+HVAC_TYPE_OPTIONS = [
+    "Constant-speed Chillers + CAV AHUs",
+    "Water-cooled Screw Chillers + CAV AHUs",
+    "Reciprocating Chillers + Fixed Speed AHUs",
+    "Old Centrifugal Chillers + Primary-Secondary Pumping",
+    "Centrifugal Chillers with VFD + Variable Primary Pumping",
+    "Water-cooled Chillers without VFD",
+    "Mixed Window and Split Units + Constant Volume Ducting",
+    "Direct Expansion (DX) Central Units + Split ACs",
+    "VRF System with Individual Zone Control",
+    "Other",
+]
+
+HVAC_DISTRIBUTION_OPTIONS = [
+    "Centralized (central plant serving the whole building)",
+    "Localized (Split, Window, or VRF units per zone)",
+]
+
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Building Characteristics")
-    building_type = st.selectbox(
+
+    _bt_label = st.selectbox(
         "Building Type",
-        ["Government / Commercial Office", "Multi-Tenant Commercial Office",
-         "Government / Administrative", "Other"],
+        [label for label, _ in BUILDING_TYPE_OPTIONS],
+        index=0,
     )
+    _bt_value = dict(BUILDING_TYPE_OPTIONS)[_bt_label]
+    if _bt_value is None:
+        building_type = st.text_input("Specify building type", "")
+        st.caption(
+            "A custom building type that doesn't match a known category "
+            "will be benchmarked against Office EUI ranges by default."
+        )
+    else:
+        building_type = _bt_value
+
     floor_area = st.number_input("Gross Floor Area (m²)", min_value=100, value=15000, step=500)
     building_age = st.number_input("Building Age (years)", min_value=0, value=15)
-    baseline_hvac_type = st.text_input("Baseline HVAC Type", "Constant-speed Chillers + CAV AHUs")
+
+    _hvac_label = st.selectbox("Baseline HVAC Type", HVAC_TYPE_OPTIONS, index=0)
+    if _hvac_label == "Other":
+        baseline_hvac_type = st.text_input("Specify baseline HVAC type", "")
+    else:
+        baseline_hvac_type = _hvac_label
+
+    hvac_distribution = st.selectbox("HVAC Distribution", HVAC_DISTRIBUTION_OPTIONS)
+
     eui_level = st.selectbox("Energy Use Intensity", ["High", "Typical", "Low"])
     n_floors = st.number_input("Number of Floors", min_value=1, value=4)
     fan_type = st.selectbox("Fan Type", ["Constant Speed", "Variable Speed (VFD)"])
@@ -91,6 +199,7 @@ building_features = {
     "gross_floor_area_m2": floor_area,
     "building_age": building_age,
     "hvac_type": baseline_hvac_type,      # renamed key to match what energy_scoring.py expects
+    "hvac_distribution": hvac_distribution,
     "eui_level": eui_level,
     "n_floors": n_floors,
     "fan_type": fan_type,
@@ -99,7 +208,7 @@ building_features = {
     "controls": controls,
 }
 
-if st.button("Get Recommendations", type="primary"):
+if st.button("Get Recommendations", type="primary", disabled=not weights_valid):
     result = recommend_retrofits(
         building_features=building_features,
         inefficiency_flags=inefficiency_flags,
@@ -111,3 +220,6 @@ if st.button("Get Recommendations", type="primary"):
         f"{len(result)} of 5 catalog options shown "
         f"(filtered by detected conditions above)."
     )
+
+if not weights_valid:
+    st.info("Fix the axis weights in the sidebar (they must sum to 1.00) to enable recommendations.")

@@ -65,23 +65,54 @@ def _score_from_quintile(value):
     return int(np.digitize(value, CO2_BINS[1:-1], right=True) + 1)
 
 
+def _option_was_implemented(building, retrofit_option):
+    """True if this specific retrofit_option is part of what `building`
+    actually implemented -- via its per-measure binary column or its
+    `retrofit_measures_implemented` list. Mirrors maintenance_score()'s
+    check in src/Person D/maintenance.py."""
+    implemented = bool(building.get(RETROFIT_COLUMNS[retrofit_option]))
+    if not implemented and building.get("retrofit_measures_implemented"):
+        parsed = str(building["retrofit_measures_implemented"]).split(";")
+        implemented = retrofit_option in parsed
+    return implemented
+
+
 def comfort_score(building, retrofit_option):
-    """Return a 1-5 comfort score for the selected retrofit option."""
+    """Return a 1-5 comfort score for the selected retrofit option.
+
+    Uses the building's own `comfort_impact_score` ONLY when this specific
+    retrofit_option was actually part of what that building implemented --
+    that label reflects the outcome of whatever combo of measures was
+    implemented together, so it isn't a valid stand-in for a *different*,
+    hypothetical option. Otherwise falls back to the EESL group average for
+    buildings that implemented that measure. (Previously this ignored
+    `building` entirely and always returned the group average, even for a
+    real EESL row carrying its own comfort_impact_score label.)
+    """
     if retrofit_option not in RETROFIT_COLUMNS:
         raise ValueError(f"Unknown retrofit option: {retrofit_option}")
 
-    return round(
-        float(np.clip(comfort_means[retrofit_option], 1, 5)),
-        2
-    )
+    value = building.get("comfort_impact_score")
+    if value is not None and _option_was_implemented(building, retrofit_option):
+        return round(float(np.clip(value, 1, 5)), 2)
+
+    return round(float(np.clip(comfort_means[retrofit_option], 1, 5)), 2)
 
 
 def sustainability_score(building, retrofit_option):
-    """Return a 1-5 sustainability score for the selected retrofit option."""
+    """Return a 1-5 sustainability score for the selected retrofit option.
+
+    Same direct-label pattern as comfort_score(): uses the building's own
+    `avoided_co2_tons_yr` only when this option was actually what that
+    building implemented, otherwise falls back to the EESL group average
+    avoided-CO2 for that measure.
+    """
     if retrofit_option not in RETROFIT_COLUMNS:
         raise ValueError(f"Unknown retrofit option: {retrofit_option}")
 
-    value = co2_means[retrofit_option]
+    value = building.get("avoided_co2_tons_yr")
+    if value is None or not _option_was_implemented(building, retrofit_option):
+        value = co2_means[retrofit_option]
 
     return _score_from_quintile(float(value))
 

@@ -37,12 +37,33 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 def _load_module(name: str, path: Path):
     """Load a module from a file path (needed because teammates' folder
     names contain spaces, e.g. 'Person A', 'person c/comfort and
-    sustainability', so they can't be imported as normal packages)."""
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
+    sustainability', so they can't be imported as normal packages).
+
+    Raises a clear, actionable RuntimeError instead of letting a bare
+    FileNotFoundError/ImportError surface from deep inside importlib's
+    internals -- this is the exact failure mode that broke the app when
+    Person C's folder moved (see git history): the traceback pointed at
+    <frozen importlib._bootstrap_external>, not at the actual missing path,
+    which made it slow to diagnose.
+    """
+    if not path.exists():
+        raise RuntimeError(
+            f"combiner.py could not load '{name}': expected a file at "
+            f"{path}, but nothing exists there. If a teammate's folder was "
+            f"renamed or moved, update this path in combiner.py to match."
+        )
+    try:
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Could not build an import spec for {path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+    except Exception as exc:
+        raise RuntimeError(
+            f"combiner.py failed to load '{name}' from {path}: {exc}"
+        ) from exc
 
 
 _person_a = _load_module(
