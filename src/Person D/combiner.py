@@ -150,7 +150,7 @@ def filter_catalog(inefficiency_flags: Dict[str, int]) -> list:
     return [m for m in RETROFIT_CATALOG if m in relevant]
 
 
-def get_recommendation_and_grade(final_score: float) -> Tuple[str, str]:
+def get_recommendation_and_grade(final_score: float) -> tuple[str, str]:
     """
     Direct grading scale derived purely from Final Score (1-5 scale):
     - 4.0+: Highly Recommended | Grade A
@@ -217,12 +217,10 @@ def explain_retrofit_score(
             f"elevates chiller COP by 0.5–1.2 W/W across part-load hours, eliminating compressor over-cycling."
         )
     elif option == "DCV":
-        z_type = building_features.get("zoning_type", "Multiple Zones")
-        occ_lvl = building_features.get("occupancy_level", "Medium")
         energy_why = (
             f"Rated {e_score}/5 based on {savings_pct}% predicted energy savings ({saved_kwh:,.0f} kWh/yr). "
-            f"Building utilizes {z_type} with {occ_lvl} occupancy. Demand-Controlled Ventilation throttles outside air intake "
-            f"based on real-time zone CO2 sensors, cutting unnecessary conditioned ventilation air when spaces are unoccupied."
+            f"Demand-Controlled Ventilation throttles outside air intake based on real-time occupancy/air-quality signals, "
+            f"cutting unnecessary conditioned ventilation air when spaces are unoccupied."
         )
     elif option == "Smart_Controls":
         age = building_features.get("building_age", 15)
@@ -232,12 +230,10 @@ def explain_retrofit_score(
             f"and economizer logic, preventing off-hour cooling and drift from setpoints. Estimation basis: {est_basis}."
         )
     elif option == "Zoning_Optimization":
-        n_z = building_features.get("n_zones") or building_features.get("n_thermal_zones") or 4
-        z_type = building_features.get("zoning_type", "Floor-wise")
         energy_why = (
             f"Rated {e_score}/5 based on {savings_pct}% predicted energy savings ({saved_kwh:,.0f} kWh/yr). "
-            f"Building configured with {n_z} zones ({z_type}). Zoning optimization balances air distribution via motorized VAV "
-            f"dampers and smart zone thermostats, eliminating perimeter-to-core temperature fighting."
+            f"Telemetry indicates thermal imbalance across zones. Zoning optimization balances air distribution via motorized VAV "
+            f"dampers and smart zone thermostats, reducing perimeter-to-core temperature fighting."
         )
     else:
         energy_why = f"Rated {e_score}/5 based on {savings_pct}% predicted energy savings ({saved_kwh:,.0f} kWh/yr). Basis: {est_basis}."
@@ -391,6 +387,7 @@ def score_option(
         "Sustainability": sustainability,
         "Maintenance": maintenance,
         "Savings %": savings_pct,
+        "Annual Energy Saved (kWh)": energy_est.get("annual_energy_saved_kwh", 0.0),
         "Annual Savings (INR)": financials["annual_cost_savings_inr"],
         "Upgrade Cost (INR)": upgrade_cost,
         "Estimated CAPEX (INR)": upgrade_cost,

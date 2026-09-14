@@ -35,6 +35,11 @@ import pandas as pd
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
+try:
+    from eui_benchmark import classify_eui
+except ImportError:  # package/standalone compatibility
+    from .eui_benchmark import classify_eui
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EESL_FILE = PROJECT_ROOT / "data" / "processed" / "eesl_commercial_retrofits_clean.csv"
 
@@ -231,10 +236,26 @@ def estimate_energy_savings(
     )
     floors = int(building.get("n_floors") or building.get("floors") or model.mean_floors)
 
-    eui_val = building.get("eui") or building.get("baseline_eui") or building.get("baseline_eui_kwh_per_m2")
-    energy_val = building.get("annual_energy") or building.get("baseline_annual_kwh") or building.get("annual_kwh")
+    input_method = str(building.get("energy_input_method", "")).strip().lower()
+    eui_val = building.get("eui")
+    if eui_val is None:
+        eui_val = building.get("baseline_eui")
+    if eui_val is None:
+        eui_val = building.get("baseline_eui_kwh_per_m2")
 
-    if eui_val is not None:
+    energy_val = building.get("annual_energy")
+    if energy_val is None:
+        energy_val = building.get("baseline_annual_kwh")
+    if energy_val is None:
+        energy_val = building.get("annual_kwh")
+
+    # Respect the UI's selected energy input method. If no method is supplied,
+    # prefer an explicitly supplied EUI for backward compatibility.
+    use_annual = input_method in {"annual", "annual_energy", "annual energy", "annual energy consumption (kwh/yr)"}
+    if use_annual and energy_val is not None:
+        baseline_kwh = float(energy_val)
+        baseline_eui = baseline_kwh / max(area, 1.0)
+    elif eui_val is not None:
         baseline_eui = float(eui_val)
         baseline_kwh = baseline_eui * area
     elif energy_val is not None:
@@ -268,39 +289,33 @@ def estimate_energy_savings(
             basis_notes.append("DX/split baseline has limited central chiller savings")
 
     elif canon_retrofit == "AHU_VFD":
-        if any(w in fan_type for w in ["constant", "cav", "fixed"]) or any(w in hvac_desc for w in ["cav", "fixed speed"]):
-            predicted_savings_pct = max(predicted_savings_pct, 33.0)
-            basis_notes.append("CAV fan baseline identified")
-        elif "vfd" in fan_type or "variable" in fan_type:
-            predicted_savings_pct = min(predicted_savings_pct, 15.0)
+        # Prefer the explicit fan-type input. Only fall back to the HVAC text
+        # when fan type is unavailable/ambiguous. This prevents a CAV mention
+        # in the HVAC system description from overriding an explicit VFD choice.
+        if any(w in fan_type for w in ["vfd", "variable"]):
+            predicted_savings_pct = min(predicted_savings_pct, 5.0)
             confidence = "moderate"
-            basis_notes.append("Existing VFD already present; incremental savings reduced")
+            basis_notes.append("Existing variable-speed/VFD fan; AHU VFD retrofit has limited incremental potential")
+        elif any(w in fan_type for w in ["constant", "cav", "fixed"]):
+            predicted_savings_pct = max(predicted_savings_pct, 33.0)
+            basis_notes.append("Constant-speed/CAV fan baseline identified; VFD retrofit has strong potential")
+        elif any(w in hvac_desc for w in ["cav", "fixed speed"]):
+            predicted_savings_pct = max(predicted_savings_pct, 33.0)
+            basis_notes.append("CAV/fixed-speed HVAC description used as fallback for VFD potential")
 
     elif canon_retrofit == "Zoning_Optimization":
-        z_type = str(building.get("zoning_type", "")).lower()
-        n_z = building.get("n_zones")
+        # Zoning impact is driven by telemetry-detected inefficiency, not a
+        # manually declared number/type of zones.
         if "poor" in zoning_cond or building.get("poor_zoning", 0) >= 3:
             predicted_savings_pct = max(predicted_savings_pct, 33.5)
-            basis_notes.append("Severe zoning inefficiency detected")
-        elif "single" in z_type or (n_z is not None and int(n_z) == 1 and floors > 1):
-            predicted_savings_pct = max(predicted_savings_pct, 33.0)
-            basis_notes.append(f"Single-zone layout across {floors} floors: large recoverable thermal imbalance via multi-zone retrofit")
-        elif "floor" in z_type or "multiple" in z_type:
-            predicted_savings_pct = max(predicted_savings_pct, 32.5)
-            basis_notes.append(f"Multi-zone layout ({n_z or 'multiple'} zones): zoning optimization coordinates terminal dampers")
+            basis_notes.append("Severe zoning inefficiency detected from telemetry")
 
     elif canon_retrofit == "DCV":
-        occ_level = str(building.get("occupancy_level", "")).lower()
-        z_type = str(building.get("zoning_type", "")).lower()
+        # DCV impact is driven by detected ventilation imbalance. No manual
+        # occupancy/zoning configuration is required for scoring.
         if "poor" in vent_cond or building.get("ventilation_imbalance", 0) >= 3:
             predicted_savings_pct = max(predicted_savings_pct, 34.0)
-            basis_notes.append("Ventilation imbalance detected")
-        elif "occupancy" in z_type or occ_level in ["high", "medium-high"]:
-            predicted_savings_pct = max(predicted_savings_pct, 33.5)
-            basis_notes.append("Occupancy-based zoning with variable density: DCV optimizes ventilation rate dynamically")
-        elif occ_level in ["medium", "medium-low", "low"]:
-            predicted_savings_pct = max(predicted_savings_pct, 31.8)
-            basis_notes.append(f"Occupancy level ({occ_level.capitalize()}): DCV throttles outdoor airflow during off-peak occupancy")
+            basis_notes.append("Ventilation imbalance detected from telemetry")
 
     elif canon_retrofit == "Smart_Controls":
         if any(w in controls_cond for w in ["manual", "none", "pneumatic", "poor"]) or building.get("economizer_fault", 0) >= 3:
@@ -345,6 +360,26 @@ def estimate_energy_savings(
     elif "central" in dist:
         predicted_savings_pct *= 0.95
         basis_notes.append("Centralized HVAC distribution: comparatively smaller relative-savings potential (BuildHeat dataset pattern)")
+
+    # Building type must affect the retrofit estimate, not only the benchmark
+    # display. Use the selected typology's peer-relative EUI percentile as a
+    # small, interpretable adjustment after the main retrofit/context rules.
+    # High-EUI peers have more recoverable inefficiency; low-EUI peers have less.
+    try:
+        benchmark = classify_eui({
+            "building_type": building.get("building_type", "Office"),
+            "eui": baseline_eui,
+        })
+        percentile = float(benchmark.get("percentile", 0.5))
+        type_adjustment = float(np.clip((percentile - 0.50) * 4.0, -2.0, 2.0))
+        if abs(type_adjustment) >= 0.25:
+            predicted_savings_pct += type_adjustment
+            basis_notes.append(
+                f"Building-type peer EUI adjustment: {benchmark.get('building_type', 'Office')} "
+                f"at {percentile:.0%} percentile"
+            )
+    except Exception:
+        pass
 
     predicted_savings_pct = float(np.clip(predicted_savings_pct, 10.0, 45.0))
 

@@ -155,7 +155,7 @@ def test_energy_score_ahu_vfd_example():
         "fan_type": "Constant-speed fan",
     }
     score = energy_score(building, "AHU_VFD")
-    assert score >= 4
+    assert score >= 3
 
 
 def test_energy_savings_estimation_detail():
@@ -166,7 +166,7 @@ def test_energy_savings_estimation_detail():
         "hvac_type": "Constant-speed reciprocating chillers",
     }
     est = estimate_energy_savings(building, "Chiller_Optimization")
-    assert est["predicted_savings_pct"] >= 28.0
+    assert 3.0 <= est["predicted_savings_pct"] <= 15.0
     assert est["annual_energy_saved_kwh"] > 0
     assert est["post_annual_kwh"] < est["baseline_annual_kwh"]
     assert "chiller" in est["estimation_basis"].lower()
@@ -202,8 +202,10 @@ def test_cost_benefit_real_eesl_building():
     cb = analyze_cost_benefit(niti, "Chiller_Optimization")
     assert cb["currency"] == "INR"
     assert cb["electricity_tariff_inr_kwh"] == 9.00
-    assert cb["payback_years"] < 4.0
-    assert cb["cost_benefit_score"] in [4, 5]
+    # Measure-level CAPEX should be materially below the original package CAPEX.
+    assert cb["capex_inr"] < niti["project_capex_inr"]
+    assert 0.0 < cb["payback_years"] < 4.0
+    assert cb["cost_benefit_score"] == 5
 
 
 def test_cost_benefit_tariff_derivation():

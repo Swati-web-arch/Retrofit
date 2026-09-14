@@ -3,9 +3,8 @@ Interface
 =========
 Person D — Retrofit Recommendation Engine
 
-Streamlit app: enter building characteristics (including zoning & occupancy),
-review real-time detected conditions from sensor telemetry, adjust the 5 axis
-weights, and view an executive dashboard with clean 1-5 scale grades (A-F),
+Streamlit app: enter building characteristics, assess operational HVAC conditions,
+adjust the 5 axis weights, and view an executive dashboard with clean 1-5 scale grades (A-F),
 detailed scoring explanations, visual charts, and a complete financial
 feasibility table with dark green to dark red color mapping.
 
@@ -13,7 +12,6 @@ Run with:
     streamlit run "src/Person D/app.py"
 """
 
-import io
 from pathlib import Path
 from typing import Any, Dict, Optional
 import altair as alt
@@ -23,41 +21,10 @@ import streamlit as st
 
 from combiner import (
     DEFAULT_WEIGHTS,
-    PROJECT_ROOT,
-    RETROFIT_CATALOG,
     classify_eui,
-    detect_conditions,
     recommend_retrofits,
 )
 
-
-def estimate_declared_zoning_severity(building: Dict[str, Any]) -> int:
-    """Estimate poor_zoning severity (0-5) from the user's DECLARED zoning setup.
-    Rule of thumb: roughly 1 zone per 300-500 m2 is reasonable practice;
-    fewer than that, or a single/uniform zone on a large building, is a poor-zoning signal.
-    """
-    n_zones = int(building.get("n_thermal_zones") or building.get("n_zones") or 1)
-    zoning_type = str(building.get("zoning_type", "")).lower()
-    area = float(building.get("gross_floor_area_m2", 0) or 0)
-
-    if "single" in zoning_type or "uniform" in zoning_type:
-        if area > 1000:
-            return 5
-        elif area > 300:
-            return 3
-        return 1
-
-    if n_zones <= 0 or area <= 0:
-        return 0
-
-    m2_per_zone = area / max(n_zones, 1)
-    if m2_per_zone > 1000:
-        return 4
-    elif m2_per_zone > 600:
-        return 3
-    elif m2_per_zone > 300:
-        return 1
-    return 0
 
 
 st.set_page_config(
@@ -166,13 +133,6 @@ HVAC_DISTRIBUTION_OPTIONS = [
     "Localized (Split, Window, or VRF units per zone)",
 ]
 
-ZONING_TYPE_OPTIONS = [
-    "Multiple Zones",
-    "Single Zone",
-    "Floor-wise",
-    "Occupancy-based",
-    "Other",
-]
 
 SEVERITY_LEGEND = {
     0: "No evidence",
@@ -182,20 +142,6 @@ SEVERITY_LEGEND = {
     4: "Strong",
     5: "Severe",
 }
-
-# ---------------------------------------------------------------------------
-# Cached Telemetry Loading
-# ---------------------------------------------------------------------------
-@st.cache_data
-def load_and_evaluate_sample_telemetry(file_path_str: str) -> Dict[str, Any]:
-    df = pd.read_csv(file_path_str)
-    return detect_conditions(df)
-
-
-@st.cache_data
-def evaluate_uploaded_telemetry(file_bytes: bytes) -> Dict[str, Any]:
-    df = pd.read_csv(io.BytesIO(file_bytes))
-    return detect_conditions(df)
 
 
 # ===========================================================================
@@ -261,48 +207,6 @@ if st.session_state["page_view"] == "input":
         hvac_distribution = st.selectbox("HVAC Distribution Architecture", HVAC_DISTRIBUTION_OPTIONS, index=dist_idx)
 
         # -------------------------------------------------------------------
-        # Zoning & Occupancy Inputs
-        # -------------------------------------------------------------------
-        st.markdown("---")
-        st.subheader("2. Zoning & Occupancy Configuration")
-        st.caption("Define spatial control granularity and occupant density variation.")
-
-        zcol1, zcol2 = st.columns(2)
-        with zcol1:
-            n_zones = st.number_input(
-                "Number of Thermal Zones",
-                min_value=1,
-                max_value=300,
-                value=int(saved.get("n_zones", 4)),
-                step=1,
-                help="Total count of separately controlled temperature/airflow zones.",
-            )
-            z_idx = ZONING_TYPE_OPTIONS.index(saved.get("zoning_type", "Multiple Zones")) if saved.get("zoning_type") in ZONING_TYPE_OPTIONS else 0
-            zoning_type = st.selectbox(
-                "Zoning Type",
-                ZONING_TYPE_OPTIONS,
-                index=z_idx,
-                help="Spatial division approach: Single, Multiple, Floor-wise, Occupancy-based, or Other.",
-            )
-            if zoning_type == "Other":
-                custom_zoning = st.text_input("Specify Zoning Type", saved.get("custom_zoning", "Custom Zone Division"))
-            else:
-                custom_zoning = zoning_type
-
-        with zcol2:
-            occ_options = ["Low", "Medium-Low", "Medium", "Medium-High", "High"]
-            occ_idx = occ_options.index(saved.get("occupancy_level", "Medium")) if saved.get("occupancy_level") in occ_options else 2
-            occupancy_level = st.select_slider(
-                "Occupancy Level & Dynamic Variation",
-                options=occ_options,
-                value=occ_options[occ_idx],
-                help="Occupancy density. Higher levels increase value of Demand-Controlled Ventilation (DCV).",
-            )
-            st.info(
-                f"**Zoning Setup:** {n_zones} zones ({custom_zoning}) with **{occupancy_level}** internal load variation."
-            )
-
-        # -------------------------------------------------------------------
         # Energy Baseline & Financial Parameters
         # -------------------------------------------------------------------
         st.markdown("---")
@@ -325,10 +229,6 @@ if st.session_state["page_view"] == "input":
             "hvac_distribution": hvac_distribution,
             "n_floors": n_floors,
             "fan_type": fan_type,
-            "n_zones": n_zones,
-            "n_thermal_zones": n_zones,
-            "zoning_type": custom_zoning,
-            "occupancy_level": occupancy_level,
         }
 
         if energy_input_method == "Baseline EUI (kWh/m²/yr)":
@@ -336,13 +236,14 @@ if st.session_state["page_view"] == "input":
                 "Baseline EUI (kWh/m²/yr)",
                 min_value=1.0,
                 max_value=2500.0,
-                value=float(saved.get("eui", 150.0)),
+                value=float(saved.get("eui") if saved.get("eui") is not None else 150.0),
                 step=10.0,
                 help="Energy Use Intensity in kWh/m²/year. Commercial office average is ~150.",
             )
             building_features["eui"] = float(eui_input)
+            building_features["energy_input_method"] = "eui"
         else:
-            default_annual = float(saved.get("annual_energy", floor_area * 150.0))
+            default_annual = float(saved.get("annual_energy") if saved.get("annual_energy") is not None else floor_area * 150.0)
             energy_input = st.number_input(
                 "Annual Energy Consumption (kWh/yr)",
                 min_value=100.0,
@@ -351,6 +252,7 @@ if st.session_state["page_view"] == "input":
                 help="Total annual electricity consumed in kWh.",
             )
             building_features["annual_energy"] = float(energy_input)
+            building_features["energy_input_method"] = "annual_energy"
 
         # EUI Benchmarking feedback
         try:
@@ -390,96 +292,65 @@ if st.session_state["page_view"] == "input":
             building_features["budget"] = float(available_budget)
 
     with col2:
-        st.subheader("4. Telemetry Diagnostics & Detected Conditions")
-        st.caption("Operational fault detection evaluated from sensor logs or declared building setup.")
-
-        SAMPLE_DATASETS = {
-            "Sample: Office HVAC testbed (bldg59)": PROJECT_ROOT / "data" / "processed" / "bldg59_master_hourly_clean.csv",
-            "Sample: Multi-zone lab testbed": PROJECT_ROOT / "data" / "processed" / "TestBedClean.csv",
-            "Upload sensor CSV": None,
-        }
-
-        saved_source = saved.get("telemetry_source", list(SAMPLE_DATASETS.keys())[0])
-        src_idx = list(SAMPLE_DATASETS.keys()).index(saved_source) if saved_source in SAMPLE_DATASETS else 0
-
-        telemetry_source = st.radio(
-            "Select Telemetry Source",
-            list(SAMPLE_DATASETS.keys()),
-            index=src_idx,
+        st.subheader("4. Operational Condition Assessment")
+        st.caption(
+            "Rate the current severity of each HVAC operating condition from 0 (no evidence) to 5 (severe). "
+            "These assessments directly inform retrofit relevance and scoring."
         )
 
-        detection_data = None
-        if telemetry_source == "Upload sensor CSV":
-            uploaded_file = st.file_uploader(
-                "Upload Sensor Telemetry CSV",
-                type=["csv"],
-                help="Must contain temperature, damper, or zone readings.",
+        def condition_slider(label: str, key: str, help_text: str) -> int:
+            return int(
+                st.slider(
+                    label,
+                    min_value=0,
+                    max_value=5,
+                    value=int(saved.get(key, 0)),
+                    step=1,
+                    help=help_text,
+                )
             )
-            if uploaded_file is not None:
-                try:
-                    detection_data = evaluate_uploaded_telemetry(uploaded_file.getvalue())
-                except Exception as exc:
-                    st.error(f"Failed to evaluate uploaded telemetry: {exc}")
-        else:
-            sample_path = SAMPLE_DATASETS[telemetry_source]
-            if sample_path.exists():
-                detection_data = load_and_evaluate_sample_telemetry(str(sample_path))
-            else:
-                st.error(f"Sample file not found at: {sample_path}")
 
-        # Calculate zoning severity from declared setup
-        declared_pz = estimate_declared_zoning_severity(building_features)
+        operational_scores = {}
 
-        if detection_data is not None:
-            scores = detection_data.get("scores", {})
-            details = detection_data.get("details", {})
+        operational_scores["poor_zoning"] = condition_slider(
+            "Poor Thermal Zoning",
+            "poor_zoning",
+            "Rate how strongly different rooms or zones experience uneven heating/cooling. "
+            "0 = no issue, 5 = severe and persistent zone imbalance.",
+        )
+        operational_scores["ventilation_imbalance"] = condition_slider(
+            "Ventilation Imbalance",
+            "ventilation_imbalance",
+            "Rate how strongly the building appears to have too much or too little outdoor-air ventilation. "
+            "0 = no issue, 5 = severe imbalance.",
+        )
+        operational_scores["economizer_fault"] = condition_slider(
+            "Economizer Fault",
+            "economizer_fault",
+            "Rate the likelihood/severity of a problem with the economizer or free-cooling controls. "
+            "0 = no evidence, 5 = severe fault.",
+        )
+        operational_scores["sensor_mismatch"] = condition_slider(
+            "Sensor / Measurement Mismatch",
+            "sensor_mismatch",
+            "Rate the severity of inconsistent, drifting, or unreliable HVAC sensor readings. "
+            "0 = no evidence, 5 = severe mismatch.",
+        )
 
-            # Take the max of telemetry zoning and declared zoning setup
-            effective_pz = max(scores.get("poor_zoning", 0), declared_pz)
+        st.markdown("##### Current Operational Severity")
+        mcol1, mcol2 = st.columns(2)
+        with mcol1:
+            pz = operational_scores["poor_zoning"]
+            st.metric("Poor Zoning", f"{pz} / 5", SEVERITY_LEGEND.get(pz, ""))
+            ef = operational_scores["economizer_fault"]
+            st.metric("Economizer Fault", f"{ef} / 5", SEVERITY_LEGEND.get(ef, ""))
+        with mcol2:
+            vi = operational_scores["ventilation_imbalance"]
+            st.metric("Ventilation Imbalance", f"{vi} / 5", SEVERITY_LEGEND.get(vi, ""))
+            sm = operational_scores["sensor_mismatch"]
+            st.metric("Sensor Mismatch", f"{sm} / 5", SEVERITY_LEGEND.get(sm, ""))
 
-            st.markdown("##### Operational Severity Scores (0=No evidence ... 5=Severe)")
-            mcol1, mcol2 = st.columns(2)
-            with mcol1:
-                st.metric("Poor Zoning", f"{effective_pz} / 5", SEVERITY_LEGEND.get(effective_pz, ""))
-                ef = scores.get("economizer_fault", 0)
-                st.metric("Economizer Fault", f"{ef} / 5", SEVERITY_LEGEND.get(ef, ""))
-            with mcol2:
-                vi = scores.get("ventilation_imbalance", 0)
-                st.metric("Ventilation Imbalance", f"{vi} / 5", SEVERITY_LEGEND.get(vi, ""))
-                sm = scores.get("sensor_mismatch", 0)
-                st.metric("Sensor Mismatch", f"{sm} / 5", SEVERITY_LEGEND.get(sm, ""))
-
-            with st.expander("Diagnostic Telemetry Details", expanded=False):
-                z_det = details.get("zoning", {})
-                if "median_zone_spread_c" in z_det:
-                    st.markdown(
-                        f"• **Poor Zoning ({SEVERITY_LEGEND.get(effective_pz, '')}):** Median spread: {z_det.get('median_zone_spread_c')}°C "
-                        f"(P90: {z_det.get('p90_zone_spread_c')}°C). Declared setup evaluation: {declared_pz}/5."
-                    )
-                else:
-                    st.markdown(f"• **Poor Zoning:** Declared zoning setup severity = {declared_pz}/5 ({custom_zoning}, {n_zones} zones).")
-
-                v_det = details.get("ventilation", {})
-                st.markdown(f"• **Ventilation:** Violation rate: {v_det.get('violation_rate_pct', 0)}% ({v_det.get('total_violation_hours', 0)} hrs).")
-
-                e_det = details.get("economizer", {})
-                st.markdown(f"• **Economizer:** Fault rate: {e_det.get('fault_rate_pct', 0)}% ({e_det.get('total_fault_hours', 0)} hrs).")
-
-                s_det = details.get("sensor_mismatch", {})
-                st.markdown(f"• **Sensor Mismatch:** Mismatch rate: {s_det.get('mismatch_rate_pct', 0)}%.")
-
-            inefficiency_flags = {
-                **scores,
-                "poor_zoning": effective_pz,
-            }
-        else:
-            inefficiency_flags = {
-                "poor_zoning": declared_pz,
-                "ventilation_imbalance": 0,
-                "economizer_fault": 0,
-                "sensor_mismatch": 0,
-            }
-            st.info(f"Declared zoning setup reflects an initial severity of **{declared_pz} / 5** ({SEVERITY_LEGEND.get(declared_pz, '')}).")
+        inefficiency_flags = operational_scores
 
     # -----------------------------------------------------------------------
     # Get Recommendations Button
@@ -501,16 +372,12 @@ if st.session_state["page_view"] == "input":
             "hvac_distribution": hvac_distribution,
             "n_floors": n_floors,
             "fan_type": fan_type,
-            "n_zones": n_zones,
-            "zoning_type": zoning_type,
-            "custom_zoning": custom_zoning if zoning_type == "Other" else "",
-            "occupancy_level": occupancy_level,
             "energy_input_method": energy_input_method,
-            "eui": float(building_features.get("eui", 150.0)),
-            "annual_energy": float(building_features.get("annual_energy", floor_area * 150.0)),
+            "eui": float(building_features.get("eui")) if "eui" in building_features else None,
+            "annual_energy": float(building_features.get("annual_energy")) if "annual_energy" in building_features else None,
             "electricity_price": tariff_val,
             "available_budget": available_budget,
-            "telemetry_source": telemetry_source,
+            **operational_scores,
         }
 
         results_df = recommend_retrofits(
@@ -550,11 +417,9 @@ elif st.session_state["page_view"] == "dashboard":
     st.title("Retrofit Recommendation & Executive Dashboard")
 
     # Building Context Chips
-    z_label = f"{b_features.get('n_zones', 4)} Zones ({b_features.get('zoning_type', 'Multi-zone')})"
     st.caption(
         f"**Facility:** {b_features.get('building_type', 'Office')} | **Area:** {b_features.get('gross_floor_area_m2', 0):,.0f} m² | "
-        f"**Floors:** {b_features.get('n_floors', 1)} | **Zoning:** {z_label} | "
-        f"**Occupancy:** {b_features.get('occupancy_level', 'Medium')} | "
+        f"**Floors:** {b_features.get('n_floors', 1)} | "
         f"**Available Budget:** ₹{budget:,.0f} | **Tariff:** ₹{b_features.get('electricity_price', 9.0):.2f}/kWh"
     )
 
@@ -716,7 +581,16 @@ elif st.session_state["page_view"] == "dashboard":
 
                 with e_tab:
                     st.markdown(f"**Energy Rationale:**\n\n{exp['energy_explanation']}")
-                    st.markdown(f"• **Predicted Energy Savings:** `{row['Savings %']:.1f}%`\n• **Annual Electricity Saved:** `{round(row['Savings %']*0.01 * (b_features.get('eui', 150)*b_features.get('gross_floor_area_m2', 15000))):,.0f} kWh/year`")
+                    annual_saved_kwh = row.get("Annual Energy Saved (kWh)")
+                    if annual_saved_kwh is None:
+                        annual_saved_kwh = row["Savings %"] * 0.01 * (
+                            b_features.get("eui", b_features.get("baseline_eui", 150.0))
+                            * b_features.get("gross_floor_area_m2", b_features.get("floor_area", 15000.0))
+                        )
+                    st.markdown(
+                        f"• **Predicted Energy Savings:** `{row['Savings %']:.1f}%`\n"
+                        f"• **Annual Electricity Saved:** `{round(float(annual_saved_kwh)):,.0f} kWh/year`"
+                    )
 
                 with c_tab:
                     st.markdown(f"**Comfort Rationale:**\n\n{exp['comfort_explanation']}")
@@ -748,7 +622,7 @@ elif st.session_state["page_view"] == "dashboard":
         st.subheader("Comprehensive Retrofit Ranking & Financial Feasibility Table")
         st.caption(
             "Showing **all 5 catalog options** styled from dark green (best) to neutral to dark red. "
-            "All upgrade costs and feasibility depend directly on capital requirements."
+            "Upgrade costs are measure-level EESL benchmark estimates; exact project costs vary by equipment scope and site conditions."
         )
 
         display_df = results_df[[
