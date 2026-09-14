@@ -87,6 +87,29 @@ EMPIRICAL_SAVINGS_MEANS = {
     "Zoning_Optimization": 31.22,
 }
 
+# Subsystem Allocation Factor
+# ----------------------------
+# The EESL dataset reports 30-35% total package savings from COMBINED
+# retrofit measures (typically 3-5 measures bundled together). Applying the
+# full package-level savings percentage to a SINGLE measure would vastly
+# overstate individual measure impact. These empirical allocation fractions
+# represent the share of whole-building energy each subsystem typically
+# accounts for, derived from ASHRAE/CBECS end-use breakdowns for Indian
+# commercial buildings:
+#   - Chiller plant: ~30% of total building energy
+#   - AHU / fan systems: ~20%
+#   - Ventilation (DCV-addressable): ~12%
+#   - Controls/BMS: ~18%
+#   - Zoning (terminal reheat/imbalance): ~10%
+# The individual measure savings = package_savings_pct × allocation_factor
+SUBSYSTEM_ALLOCATION_FACTOR = {
+    "Chiller_Optimization": 0.30,
+    "AHU_VFD": 0.20,
+    "DCV": 0.12,
+    "Smart_Controls": 0.18,
+    "Zoning_Optimization": 0.10,
+}
+
 
 def normalize_retrofit_name(retrofit_option: str) -> str:
     """Map arbitrary retrofit string to canonical catalog key."""
@@ -254,14 +277,30 @@ def estimate_energy_savings(
             basis_notes.append("Existing VFD already present; incremental savings reduced")
 
     elif canon_retrofit == "Zoning_Optimization":
+        z_type = str(building.get("zoning_type", "")).lower()
+        n_z = building.get("n_zones")
         if "poor" in zoning_cond or building.get("poor_zoning", 0) >= 3:
             predicted_savings_pct = max(predicted_savings_pct, 33.5)
             basis_notes.append("Severe zoning inefficiency detected")
+        elif "single" in z_type or (n_z is not None and int(n_z) == 1 and floors > 1):
+            predicted_savings_pct = max(predicted_savings_pct, 33.0)
+            basis_notes.append(f"Single-zone layout across {floors} floors: large recoverable thermal imbalance via multi-zone retrofit")
+        elif "floor" in z_type or "multiple" in z_type:
+            predicted_savings_pct = max(predicted_savings_pct, 32.5)
+            basis_notes.append(f"Multi-zone layout ({n_z or 'multiple'} zones): zoning optimization coordinates terminal dampers")
 
     elif canon_retrofit == "DCV":
+        occ_level = str(building.get("occupancy_level", "")).lower()
+        z_type = str(building.get("zoning_type", "")).lower()
         if "poor" in vent_cond or building.get("ventilation_imbalance", 0) >= 3:
             predicted_savings_pct = max(predicted_savings_pct, 34.0)
             basis_notes.append("Ventilation imbalance detected")
+        elif "occupancy" in z_type or occ_level in ["high", "medium-high"]:
+            predicted_savings_pct = max(predicted_savings_pct, 33.5)
+            basis_notes.append("Occupancy-based zoning with variable density: DCV optimizes ventilation rate dynamically")
+        elif occ_level in ["medium", "medium-low", "low"]:
+            predicted_savings_pct = max(predicted_savings_pct, 31.8)
+            basis_notes.append(f"Occupancy level ({occ_level.capitalize()}): DCV throttles outdoor airflow during off-peak occupancy")
 
     elif canon_retrofit == "Smart_Controls":
         if any(w in controls_cond for w in ["manual", "none", "pneumatic", "poor"]) or building.get("economizer_fault", 0) >= 3:
@@ -308,13 +347,19 @@ def estimate_energy_savings(
         basis_notes.append("Centralized HVAC distribution: comparatively smaller relative-savings potential (BuildHeat dataset pattern)")
 
     predicted_savings_pct = float(np.clip(predicted_savings_pct, 10.0, 45.0))
-    predicted_savings_pct = round(float(predicted_savings_pct), 2)
-    saved_kwh = round(baseline_kwh * (predicted_savings_pct / 100.0), 2)
+
+    # Apply subsystem allocation factor: the model predicts package-level
+    # savings, so multiply by the fraction of building energy this individual
+    # measure actually addresses to avoid reporting the whole-package
+    # savings figure for a single measure.
+    alloc = SUBSYSTEM_ALLOCATION_FACTOR.get(canon_retrofit, 0.20)
+    individual_savings_pct = round(float(predicted_savings_pct * alloc), 2)
+    saved_kwh = round(baseline_kwh * (individual_savings_pct / 100.0), 2)
     post_kwh = round(max(0.0, baseline_kwh - saved_kwh), 2)
 
     return {
         "retrofit_option": canon_retrofit,
-        "predicted_savings_pct": predicted_savings_pct,
+        "predicted_savings_pct": individual_savings_pct,
         "baseline_annual_kwh": round(baseline_kwh, 2),
         "annual_energy_saved_kwh": saved_kwh,
         "post_annual_kwh": post_kwh,
@@ -327,11 +372,13 @@ def energy_score(building: Dict[str, Any], retrofit_option: str) -> int:
     """
     Calculate Energy Score on a 1–5 scale for a specific retrofit option.
 
-    1: Minimal savings (< 15%)
-    2: Low savings (15% – 22%)
-    3: Moderate savings (22% – 29%)
-    4: High savings (29% – 34%)
-    5: Very high savings (>= 34%)
+    After subsystem allocation, individual measure savings are typically
+    3–13% of total building energy. Thresholds:
+    1: Minimal savings (< 3%)
+    2: Low savings (3% – 5%)
+    3: Moderate savings (5% – 7.5%)
+    4: High savings (7.5% – 10%)
+    5: Very high savings (>= 10%)
 
     Parameters
     ----------
@@ -348,13 +395,13 @@ def energy_score(building: Dict[str, Any], retrofit_option: str) -> int:
     est = estimate_energy_savings(building, retrofit_option)
     savings_pct = est["predicted_savings_pct"]
 
-    if savings_pct >= 34.0:
+    if savings_pct >= 10.0:
         return 5
-    elif savings_pct >= 29.0:
+    elif savings_pct >= 7.5:
         return 4
-    elif savings_pct >= 22.0:
+    elif savings_pct >= 5.0:
         return 3
-    elif savings_pct >= 15.0:
+    elif savings_pct >= 3.0:
         return 2
     else:
         return 1

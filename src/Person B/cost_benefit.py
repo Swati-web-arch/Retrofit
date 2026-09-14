@@ -109,9 +109,12 @@ def analyze_cost_benefit(
     if capex_inr is not None:
         investment = float(capex_inr)
         capex_source = "user_provided"
-    elif building.get("project_capex_inr") or building.get("capex"):
-        investment = float(building.get("project_capex_inr") or building.get("capex"))
+    elif building.get("project_capex_inr"):
+        investment = float(building.get("project_capex_inr"))
         capex_source = "building_input"
+    elif building.get("custom_retrofit_capex"):
+        investment = float(building.get("custom_retrofit_capex"))
+        capex_source = "custom_override"
     else:
         unit_rate = DEFAULT_CAPEX_PER_M2_INR.get(canon_retrofit, 700.0)
         investment = round(unit_rate * area, 2)

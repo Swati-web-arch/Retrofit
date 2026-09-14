@@ -186,6 +186,50 @@ def test_recommend_retrofits_filters_by_inefficiency_flags():
     eesl = pd.read_csv(EESL_FILE)
     sample = eesl.iloc[0].to_dict()
     no_faults = {"poor_zoning": 0, "ventilation_imbalance": 0, "economizer_fault": 0, "sensor_mismatch": 0}
-    result = recommend_retrofits(building_features=sample, inefficiency_flags=no_faults)
-    # Only the two ungated measures should be scored when nothing is flagged
+    result = recommend_retrofits(building_features=sample, inefficiency_flags=no_faults, show_all=False)
+    # Only the two ungated measures should be scored when filtering is explicitly requested
     assert set(result["Retrofit Option"]) == {"AHU_VFD", "Chiller_Optimization"}
+
+
+def test_recommend_retrofits_shows_all_by_default():
+    """Requirement 4: all 5 catalog options should always be returned with tiers."""
+    eesl = pd.read_csv(EESL_FILE)
+    sample = eesl.iloc[0].to_dict()
+    no_faults = {"poor_zoning": 0, "ventilation_imbalance": 0, "economizer_fault": 0, "sensor_mismatch": 0}
+    result = recommend_retrofits(building_features=sample, inefficiency_flags=no_faults, show_all=True)
+    assert len(result) == 5
+    assert set(result["Retrofit Option"]) == set(RETROFIT_CATALOG)
+    for _, row in result.iterrows():
+        assert "Recommendation" in row
+        assert "Grade" in row
+        assert "Estimated CAPEX (INR)" in row
+        assert "Financial Sustainability" in row
+
+
+def test_grading_and_scoring_explanations():
+    building = {
+        "gross_floor_area_m2": 15000,
+        "baseline_eui_kwh_per_m2": 180,
+        "fan_type": "Constant Speed",
+        "hvac_type": "Central Chiller",
+        "zoning_type": "Occupancy-based",
+        "occupancy_level": "High",
+        "n_zones": 8,
+    }
+    result = recommend_retrofits(building_features=building, budget_inr=20000000)
+    assert len(result) == 5
+    for _, row in result.iterrows():
+        grade = row["Grade"]
+        assert grade in ["Grade A", "Grade B", "Grade C", "Grade D", "Grade F"]
+        assert 1.0 <= row["Final Score"] <= 5.0
+        assert row["Upgrade Cost (INR)"] > 0
+        assert "Budget Feasibility" in row
+        exp = row["Explanation"]
+        assert "energy_explanation" in exp
+        assert "comfort_explanation" in exp
+        assert "cost_benefit_explanation" in exp
+        assert "sustainability_explanation" in exp
+        assert "maintenance_explanation" in exp
+        assert "formula_explanation" in exp
+
+
