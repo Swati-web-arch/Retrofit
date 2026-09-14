@@ -70,6 +70,65 @@ CAPEX_RATE_RANGES_INR_PER_M2 = {
 }
 
 
+# EESL shows project CAPEX per m² rising with building floor count. Use that
+# observed relationship only as a small installation-complexity adjustment to
+# the measure-level CAPEX benchmark. This makes floor count financially
+# relevant without changing the previously calibrated savings percentages.
+FLOOR_COMPLEXITY_BASELINE = 6.0
+FLOOR_COMPLEXITY_RATE_PER_FLOOR = 0.07
+FLOOR_COMPLEXITY_MIN = 0.80
+FLOOR_COMPLEXITY_MAX = 1.30
+
+
+def _floor_complexity_factor(building: Dict[str, Any]) -> float:
+    """Return a bounded floor-count complexity multiplier for CAPEX."""
+    raw = building.get("n_floors", building.get("floors", FLOOR_COMPLEXITY_BASELINE))
+    try:
+        floors = float(raw)
+    except (TypeError, ValueError):
+        floors = FLOOR_COMPLEXITY_BASELINE
+    factor = 1.0 + FLOOR_COMPLEXITY_RATE_PER_FLOOR * (floors - FLOOR_COMPLEXITY_BASELINE)
+    return float(np.clip(factor, FLOOR_COMPLEXITY_MIN, FLOOR_COMPLEXITY_MAX))
+
+
+def _payback_score(payback_years: float) -> int:
+    if payback_years <= 2.0:
+        return 5
+    if payback_years <= 4.0:
+        return 4
+    if payback_years <= 6.0:
+        return 3
+    if payback_years <= 10.0:
+        return 2
+    return 1
+
+
+def _savings_intensity_score(annual_cost_savings_inr: float, area_m2: float, tariff: float) -> int:
+    """Score annual monetary savings per 1,000 m² against EESL-derived bands.
+
+    Thresholds are based on the EESL distribution at the dataset's default
+    commercial tariff of INR 9/kWh, then scaled by the user's tariff so the
+    score responds to actual electricity prices.
+    """
+    if area_m2 <= 0:
+        return 1
+    # EESL annual savings per m² quartile bands at the default tariff.
+    # Values are deliberately broad so this remains a planning score.
+    base_bands = (290.0, 399.0, 438.0, 531.0)
+    scale = max(float(tariff), 0.01) / EESL_DEFAULT_ELECTRICITY_TARIFF_INR
+    bands = tuple(v * scale for v in base_bands)
+    value = float(annual_cost_savings_inr) / float(area_m2)
+    if value < bands[0]:
+        return 1
+    if value < bands[1]:
+        return 2
+    if value < bands[2]:
+        return 3
+    if value < bands[3]:
+        return 4
+    return 5
+
+
 def _load_eesl_capex_rates() -> Dict[str, float]:
     """Estimate measure-level CAPEX rates from EESL package projects.
 
@@ -180,41 +239,38 @@ def analyze_cost_benefit(
         # implemented together. It must not be reused as the cost of one
         # individual retrofit option.
         unit_rate = CAPEX_PER_M2_INR.get(canon_retrofit, 350.0)
-        investment = round(unit_rate * area, 2)
-        capex_source = "eesl_measure_level_median_benchmark"
+        floor_factor = _floor_complexity_factor(building)
+        investment = round(unit_rate * area * floor_factor, 2)
+        capex_source = "eesl_measure_level_median_benchmark_plus_floor_complexity"
 
+    floor_factor = _floor_complexity_factor(building)
     unit_rate_used = investment / area if area > 0 else 0.0
     low_rate, high_rate = CAPEX_RATE_RANGES_INR_PER_M2.get(
         canon_retrofit, (unit_rate_used, unit_rate_used)
     )
-    estimated_cost_low = round(low_rate * area, 2)
-    estimated_cost_high = round(high_rate * area, 2)
+    estimated_cost_low = round(low_rate * area * floor_factor, 2)
+    estimated_cost_high = round(high_rate * area * floor_factor, 2)
 
     if annual_cost_savings > 0:
         payback = round(investment / annual_cost_savings, 2)
     else:
         payback = 99.9
 
-    # Absolute financial attractiveness: unlike the old relative-ranking
-    # method, the same retrofit gets the same score whenever its payback is
-    # the same. This is easier to explain and makes tariff/cost assumptions
-    # traceable.
-    if payback <= 2.0:
-        score = 5
-    elif payback <= 4.0:
-        score = 4
-    elif payback <= 6.0:
-        score = 3
-    elif payback <= 10.0:
-        score = 2
-    else:
-        score = 1
+    # Absolute financial attractiveness combines payback and annual savings
+    # intensity. Both respond to the user's electricity tariff; this prevents
+    # tariff from affecting only the displayed rupee values.
+    payback_score = _payback_score(payback)
+    savings_intensity_score = _savings_intensity_score(
+        annual_cost_savings, area, tariff
+    )
+    score = int(round(0.70 * payback_score + 0.30 * savings_intensity_score))
+    score = int(np.clip(score, 1, 5))
 
     summary = (
         f"Retrofit {canon_retrofit} yields annual savings of INR {annual_cost_savings:,.0f} "
         f"against an estimated CAPEX of INR {investment:,.0f}, reaching payback in {payback:.2f} years "
         f"(estimated measure-level benchmark range: INR {estimated_cost_low:,.0f}–{estimated_cost_high:,.0f}; "
-        f"CAPEX source: {capex_source})."
+        f"floor-count complexity factor: {floor_factor:.2f}; CAPEX source: {capex_source})."
     )
 
     return {
@@ -229,7 +285,10 @@ def analyze_cost_benefit(
     "capex_high_inr": estimated_cost_high,
     "capex_unit_rate_inr_m2": round(unit_rate_used, 2),
     "capex_source": capex_source,
+    "floor_complexity_factor": round(floor_factor, 3),
     "payback_years": payback,
+    "payback_score": payback_score,
+    "savings_intensity_score": savings_intensity_score,
     "cost_benefit_score": score,
     "currency": "INR",
     "financial_summary": summary,
