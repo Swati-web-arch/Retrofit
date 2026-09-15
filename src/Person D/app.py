@@ -23,6 +23,7 @@ from combiner import (
     DEFAULT_WEIGHTS,
     classify_eui,
     recommend_retrofits,
+    generate_retrofit_packages,
 )
 
 
@@ -427,6 +428,116 @@ elif st.session_state["page_view"] == "dashboard":
         top_option = results_df.iloc[0]
 
         # -------------------------------------------------------------------
+        # Budget-Constrained Retrofit Packages
+        # -------------------------------------------------------------------
+        package_df = generate_retrofit_packages(
+            results_df=results_df,
+            building_features=b_features,
+            budget_inr=budget,
+            minimum_score=3.0,
+            include_single_options=False,
+        )
+        st.session_state["package_df"] = package_df
+
+        st.markdown("---")
+        st.subheader("Retrofit Packages Within Your Budget")
+        st.caption(
+            "Click a package row to view it in detail. Packages contain only Grade A/B retrofits "
+            "and remain within the available CAPEX."
+        )
+
+        if not package_df.empty:
+            package_display = package_df[[
+                "Package", "Package Grade", "Package Score", "Package CAPEX (INR)",
+                "Annual Savings (INR)", "Payback (Years)",
+            ]].copy()
+            package_display["Package Score"] = package_display["Package Score"].map(lambda x: f"{x:.2f}")
+            package_display["Package CAPEX (INR)"] = package_display["Package CAPEX (INR)"].map(lambda x: f"₹{x:,.0f}")
+            package_display["Annual Savings (INR)"] = package_display["Annual Savings (INR)"].map(lambda x: f"₹{x:,.0f}/yr")
+            package_display["Payback (Years)"] = package_display["Payback (Years)"].map(lambda x: f"{x:.2f} yrs" if pd.notna(x) else "—")
+
+            st.markdown("**Available packages — click a row to elaborate:**")
+            package_event = st.dataframe(
+                package_display,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="package_table",
+            )
+            selected_rows = package_event.selection.rows if hasattr(package_event, "selection") else []
+            selected_idx = int(selected_rows[0]) if selected_rows else 0
+            pkg = package_df.iloc[selected_idx]
+
+            p1, p2, p3, p4 = st.columns(4)
+            with p1:
+                st.metric("Package Grade", pkg["Package Grade"], f"Score {pkg['Package Score']:.2f} / 5")
+            with p2:
+                st.metric("Package CAPEX", f"₹{pkg['Package CAPEX (INR)']:,.0f}", f"₹{pkg['Budget Remaining (INR)']:,.0f} remaining")
+            with p3:
+                st.metric("Annual Savings", f"₹{pkg['Annual Savings (INR)']:,.0f}", f"{pkg['Combined Savings %']:.1f}% energy")
+            with p4:
+                st.metric("Package Payback", f"{pkg['Payback (Years)']:.2f} yrs")
+
+            st.success(
+                f"### {pkg['Package']}\n\n"
+                f"**Grade {pkg['Package Grade'][-1]} — {pkg['Package Score']:.2f}/5**  ·  "
+                f"**₹{pkg['Package CAPEX (INR)']:,.0f}** of **₹{budget:,.0f}** available CAPEX"
+            )
+
+            condition_labels = {
+                "poor_zoning": "thermal zoning",
+                "ventilation_imbalance": "ventilation balance",
+                "economizer_fault": "economizer performance",
+                "sensor_mismatch": "sensor/measurement consistency",
+            }
+            active_conditions = [
+                label for key, label in condition_labels.items()
+                if float(b_features.get(key, 0) or 0) >= 2
+            ]
+            if active_conditions:
+                if len(active_conditions) == 1:
+                    condition_text = active_conditions[0]
+                elif len(active_conditions) == 2:
+                    condition_text = f"{active_conditions[0]} and {active_conditions[1]}"
+                else:
+                    condition_text = ", ".join(active_conditions[:-1]) + f", and {active_conditions[-1]}"
+                context_sentence = f"Your operational assessment indicates issues around **{condition_text}**."
+            else:
+                context_sentence = "Your operational assessment does not show a dominant issue, so this package is driven mainly by overall energy and financial performance."
+
+            retrofit_names = {
+                "Smart_Controls": "Smart Controls",
+                "AHU_VFD": "AHU VFD",
+                "DCV": "Demand-Controlled Ventilation",
+                "Chiller_Optimization": "Chiller Optimization",
+                "Zoning_Optimization": "Zoning Optimization",
+            }
+            readable = [retrofit_names.get(r, r) for r in pkg["Retrofits"]]
+            if len(readable) == 1:
+                measure_text = readable[0]
+            elif len(readable) == 2:
+                measure_text = f"{readable[0]} and {readable[1]}"
+            else:
+                measure_text = ", ".join(readable[:-1]) + f", and {readable[-1]}"
+
+            st.markdown("### Why this package?")
+            st.markdown(
+                f"{context_sentence} The **{measure_text}** combination was selected because "
+                f"every measure is rated Grade A or B and the complete package remains within your "
+                f"available CAPEX. Together, the package is projected to save approximately "
+                f"**{pkg['Combined Savings %']:.1f}% of annual energy**, worth about "
+                f"**₹{pkg['Annual Savings (INR)']:,.0f} per year**, with an estimated payback of "
+                f"**{pkg['Payback (Years)']:.2f} years**."
+            )
+            st.caption("Select another package in the table above to update the details and explanation.")
+        else:
+            st.info(
+                "No combination of Grade A/B retrofits currently fits within the available CAPEX. "
+                "Try increasing the budget."
+            )
+
+        # -------------------------------------------------------------------
         # Executive KPI Cards Row
         # -------------------------------------------------------------------
         st.markdown("---")
@@ -556,10 +667,10 @@ elif st.session_state["page_view"] == "dashboard":
         # Scoring Model Explanations (Detailed Why?)
         # -------------------------------------------------------------------
         st.markdown("---")
-        st.subheader("Scoring Model Explanations — Why Did Each Option Receive Its Score?")
+        st.subheader("Individual Retrofit Analysis")
         st.caption(
-            "Granular engineering justifications across Energy, Comfort, Cost-Benefit, Sustainability, "
-            "Maintenance, and the final weighted arithmetic formula."
+            "Click an individual retrofit below to elaborate on its Energy, Comfort, Cost-Benefit, "
+            "Sustainability, Maintenance, and final-score reasoning."
         )
 
         for _, row in results_df.iterrows():

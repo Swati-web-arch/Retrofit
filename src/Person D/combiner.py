@@ -25,6 +25,7 @@ assumptions section):
 """
 
 import importlib.util
+import itertools
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -401,6 +402,105 @@ def score_option(
         "Post-Retrofit Annual Cost (INR)": financials["post_annual_opcost_inr"],
         "Explanation": explanations,
     }
+
+
+
+def generate_retrofit_packages(
+    results_df: pd.DataFrame,
+    building_features: Dict[str, Any],
+    budget_inr: Optional[float] = None,
+    minimum_score: float = 3.0,
+    include_single_options: bool = False,
+) -> pd.DataFrame:
+    """Generate every feasible package made from Grade A/B-style options.
+
+    A package is eligible only when every included retrofit has a Final Score
+    >= ``minimum_score`` and the combined CAPEX is <= the user's available
+    budget.  Package savings use sequential savings to avoid simply adding
+    overlapping percentages from the individual retrofit estimates.
+
+    This is intentionally a transparent exhaustive search. The current
+    catalog contains only five measures, so at most 31 combinations exist.
+    It does not alter the individual retrofit scores or financial calculations.
+    """
+    if results_df is None or results_df.empty:
+        return pd.DataFrame()
+
+    budget = float(budget_inr if budget_inr is not None else building_features.get("available_budget", 0.0) or 0.0)
+    eligible = results_df[results_df["Final Score"] >= float(minimum_score)].copy()
+    if eligible.empty:
+        return pd.DataFrame()
+
+    records = []
+    option_rows = {str(row["Retrofit Option"]): row for _, row in eligible.iterrows()}
+    options = list(option_rows.keys())
+    min_size = 1 if include_single_options else 2
+
+    for size in range(min_size, len(options) + 1):
+        for combo in itertools.combinations(options, size):
+            rows = [option_rows[o] for o in combo]
+            capex = sum(float(r["Upgrade Cost (INR)"]) for r in rows)
+            if budget > 0 and capex > budget:
+                continue
+
+            # Sequential savings: each measure acts on the remaining baseline,
+            # avoiding the common error of adding overlapping savings % values.
+            remaining = 1.0
+            for r in rows:
+                remaining *= max(0.0, 1.0 - float(r["Savings %"]) / 100.0)
+            combined_savings_pct = (1.0 - remaining) * 100.0
+
+            area = float(
+                building_features.get("gross_floor_area_m2")
+                or building_features.get("floor_area")
+                or 0.0
+            )
+            # Prefer the same baseline energy used by the individual model.
+            annual_energy = building_features.get("annual_energy")
+            if annual_energy is None and area > 0:
+                eui = building_features.get("eui")
+                if eui is not None:
+                    annual_energy = float(eui) * area
+            if annual_energy is None:
+                annual_energy = sum(float(r.get("Baseline Annual Cost (INR)", 0.0)) for r in rows)
+                tariff = float(building_features.get("electricity_price", 9.0) or 9.0)
+                annual_energy = annual_energy / tariff if tariff > 0 else 0.0
+
+            annual_energy_saved = float(annual_energy) * combined_savings_pct / 100.0
+            tariff = float(building_features.get("electricity_price", 9.0) or 9.0)
+            annual_savings = annual_energy_saved * tariff
+            payback = capex / annual_savings if annual_savings > 0 else float("inf")
+
+            # The package score is the mean of the already-computed final
+            # scores. This keeps package ranking on the exact same 1–5 scale
+            # without inventing a new scoring model.
+            package_score = sum(float(r["Final Score"]) for r in rows) / len(rows)
+            _, package_grade = get_recommendation_and_grade(package_score)
+
+            records.append({
+                "Package": " + ".join(combo),
+                "Retrofits": list(combo),
+                "Number of Measures": size,
+                "Package Score": round(package_score, 3),
+                "Package Grade": package_grade,
+                "Combined Savings %": round(combined_savings_pct, 2),
+                "Annual Energy Saved (kWh)": round(annual_energy_saved, 0),
+                "Annual Savings (INR)": round(annual_savings, 0),
+                "Package CAPEX (INR)": round(capex, 0),
+                "Budget Remaining (INR)": round(budget - capex, 0) if budget > 0 else None,
+                "Payback (Years)": round(payback, 2) if payback != float("inf") else None,
+            })
+
+    if not records:
+        return pd.DataFrame()
+
+    package_df = pd.DataFrame(records)
+    package_df["_payback_sort"] = package_df["Payback (Years)"].fillna(float("inf"))
+    package_df = package_df.sort_values(
+        ["Package Score", "Combined Savings %", "_payback_sort"],
+        ascending=[False, False, True],
+    ).drop(columns=["_payback_sort"]).reset_index(drop=True)
+    return package_df
 
 
 def recommend_retrofits(
