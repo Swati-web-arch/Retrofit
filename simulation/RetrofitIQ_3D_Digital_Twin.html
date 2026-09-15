@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetrofitIQ — 3D HVAC Digital Twin (OpenStudio & EnergyPlus Simulation)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #0b111e; color: #e2e8f0; }
+    #app { display: flex; width: 100vw; height: 100vh; position: relative; }
+    
+    /* Top Bar */
+    #topbar {
+      position: absolute; top: 0; left: 0; right: 0; height: 42px;
+      background: #0f172a; border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; z-index: 50; font-size: 13px;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; font-weight: 600; color: #f8fafc; }
+    .topbar-left svg { fill: #38bdf8; width: 20px; height: 20px; }
+    .badge { background: #0369a1; color: #e0f2fe; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .topbar-status { color: #94a3b8; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+
+    /* Left Sidebar */
+    #sidebar-left {
+      position: absolute; top: 42px; left: 0; bottom: 0; width: 50px;
+      background: #0f172a; border-right: 1px solid #1e293b;
+      display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 16px; z-index: 40;
+    }
+    .side-icon {
+      width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #64748b; transition: all 0.2s; position: relative;
+    }
+    .side-icon:hover { color: #f8fafc; background: #1e293b; }
+    .side-icon.active { color: #38bdf8; background: #0369a1; }
+    .side-icon svg { width: 20px; height: 20px; fill: currentColor; }
+    .tooltip {
+      position: absolute; left: 55px; background: #1e293b; color: #f8fafc; font-size: 11px;
+      padding: 4px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0;
+      transition: opacity 0.2s; border: 1px solid #334155; z-index: 100;
+    }
+    .side-icon:hover .tooltip { opacity: 1; }
+
+    /* 3D Viewport */
+    #viewport { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 10; cursor: grab; }
+    #viewport:active { cursor: grabbing; }
+
+    /* Right Control Panel */
+    #sidebar-right {
+      position: absolute; top: 52px; right: 12px; width: 290px;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.8); border-radius: 8px;
+      z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 12px; overflow: hidden;
+    }
+    .panel-header-tabs { display: flex; border-bottom: 1px solid #334155; background: #0a0f1d; }
+    .ptab { flex: 1; padding: 8px; text-align: center; cursor: pointer; color: #94a3b8; font-weight: 500; }
+    .ptab.active { color: #38bdf8; background: #0284c7; color: white; }
+    .panel-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 120px); overflow-y: auto; }
+    .control-row { display: flex; align-items: center; justify-content: space-between; }
+    .control-row label { color: #94a3b8; font-size: 12px; }
+    .control-select {
+      background: #1e293b; color: #f8fafc; border: 1px solid #475569;
+      border-radius: 4px; padding: 4px 8px; font-size: 11px; width: 140px; outline: none;
+    }
+    .section-title {
+      font-size: 11px; font-weight: 700; color: #cbd5e1; text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-top: 4px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .filter-item { display: flex; align-items: center; gap: 6px; color: #cbd5e1; font-size: 11px; cursor: pointer; }
+    .filter-item input { accent-color: #38bdf8; cursor: pointer; }
+
+    .btn-group { display: flex; gap: 6px; }
+    .cam-btn {
+      flex: 1; background: #1e293b; border: 1px solid #475569; color: #e2e8f0;
+      padding: 6px 4px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;
+      transition: all 0.2s;
+    }
+    .cam-btn:hover { background: #0284c7; border-color: #38bdf8; color: white; }
+
+    /* Legend Card */
+    #legend-card {
+      position: absolute; bottom: 20px; left: 70px;
+      background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px);
+      border: 1px solid rgba(51, 65, 85, 0.7); border-radius: 8px;
+      padding: 12px 16px; z-index: 30; width: 230px; font-size: 11px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .legend-title { font-weight: 700; color: #94a3b8; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; color: #e2e8f0; }
+    .legend-box { width: 12px; height: 12px; border-radius: 3px; }
+
+    /* RetrofitIQ Brand Card */
+    #brand-card {
+      position: absolute; bottom: 20px; right: 320px;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px);
+      border: 1px solid rgba(51, 65, 85, 0.8); border-radius: 8px;
+      padding: 12px 18px; z-index: 30; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .brand-logo {
+      width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #10b981, #0284c7);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand-logo svg { width: 20px; height: 20px; fill: white; }
+    .brand-text h3 { font-size: 15px; font-weight: 700; color: #f8fafc; letter-spacing: 0.2px; }
+    .brand-text p { font-size: 10px; color: #94a3b8; font-weight: 500; }
+
+    /* 3D Callout Pins */
+    .callout-pin {
+      position: absolute; z-index: 35; pointer-events: none;
+      transform: translate(-50%, -100%); transition: opacity 0.2s;
+    }
+    .pin-bubble {
+      background: rgba(15, 23, 42, 0.92); border: 1px solid #38bdf8;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 12px rgba(56, 189, 248, 0.3);
+      padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      color: #f8fafc; white-space: nowrap; display: flex; flex-direction: column; align-items: center;
+    }
+    .pin-sub { font-size: 9px; color: #94a3b8; font-weight: 400; }
+    .pin-line { width: 1px; height: 24px; background: #38bdf8; margin: 0 auto; }
+    .pin-dot { width: 5px; height: 5px; border-radius: 50%; background: #38bdf8; margin: 0 auto; box-shadow: 0 0 6px #38bdf8; }
+
+    .pin-ahu .pin-bubble { border-color: #38bdf8; }
+    .pin-fan .pin-bubble { border-color: #22c55e; }
+    .pin-fan .pin-line, .pin-fan .pin-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .pin-coil .pin-bubble { border-color: #a855f7; }
+    .pin-coil .pin-line, .pin-coil .pin-dot { background: #a855f7; box-shadow: 0 0 6px #a855f7; }
+    .pin-return .pin-bubble { border-color: #f97316; }
+    .pin-return .pin-line, .pin-return .pin-dot { background: #f97316; box-shadow: 0 0 6px #f97316; }
+    .pin-zone1 .pin-bubble { border-color: #06b6d4; }
+    .pin-zone1 .pin-line, .pin-zone1 .pin-dot { background: #06b6d4; box-shadow: 0 0 6px #06b6d4; }
+    .pin-zone2 .pin-bubble { border-color: #ec4899; }
+    .pin-zone2 .pin-line, .pin-zone2 .pin-dot { background: #ec4899; box-shadow: 0 0 6px #ec4899; }
+
+    #energy-badge {
+      position: absolute; top: 52px; left: 70px; z-index: 30;
+      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px);
+      border: 1px solid #1e293b; border-radius: 6px; padding: 6px 12px;
+      display: flex; gap: 16px; font-size: 11px;
+    }
+    .energy-stat { display: flex; flex-direction: column; }
+    .stat-label { color: #64748b; font-size: 9px; text-transform: uppercase; }
+    .stat-val { font-weight: 700; color: #38bdf8; font-size: 13px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div id="topbar">
+      <div class="topbar-left">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span>OpenStudio Application — RetrofitIQ Simulation Suite</span>
+        <span class="badge">EnergyPlus 25.2.0</span>
+      </div>
+      <div class="topbar-status">
+        <span class="status-dot"></span>
+        <span>Weather: Mumbai Indian Metro (EPW Attached)</span>
+        <span style="color:#64748b;">|</span>
+        <span>Simulation: 8,760 hrs Converged</span>
+      </div>
+    </div>
+
+    <div id="sidebar-left">
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span class="tooltip">Home</span></div>
+      <div class="side-icon active"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg><span class="tooltip">3D Geometry & Thermal Zones</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg><span class="tooltip">Schedules</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg><span class="tooltip">Thermal Zones</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg><span class="tooltip">HVAC AirLoops (AHU / VAV)</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg><span class="tooltip">Energy Results & Savings</span></div>
+    </div>
+
+    <div id="energy-badge">
+      <div class="energy-stat">
+        <span class="stat-label">EnergyPlus Baseline</span>
+        <span class="stat-val" id="stat-baseline">191.2 MWh/yr (688.3 GJ)</span>
+      </div>
+      <div class="energy-stat">
+        <span class="stat-label">RetrofitIQ VFD Mode</span>
+        <span class="stat-val" style="color:#10b981;" id="stat-retrofit">137.9 MWh/yr (-27.9%)</span>
+      </div>
+      <div class="energy-stat">
+        <span class="stat-label">Cooling + Fans</span>
+        <span class="stat-val" style="color:#38bdf8;">120.7 GJ (33,522 kWh)</span>
+      </div>
+      <div class="energy-stat">
+        <span class="stat-label">Peak Electric Demand</span>
+        <span class="stat-val" style="color:#f59e0b;">22.60 kW (12-Mar)</span>
+      </div>
+    </div>
+
+    <div id="viewport"></div>
+
+    <div id="sidebar-right">
+      <div class="panel-header-tabs">
+        <div class="ptab active">My Model</div>
+        <div class="ptab">Library</div>
+        <div class="ptab">Edit</div>
+      </div>
+      <div class="panel-body">
+        <div class="control-row">
+          <label>Render By</label>
+          <select class="control-select" id="render-mode">
+            <option>Thermal Zone</option>
+            <option>Space Type</option>
+            <option>Construction</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label>Show Story</label>
+          <select class="control-select" id="story-mode">
+            <option>All Stories</option>
+            <option>Story 1 (Zone 2)</option>
+            <option>Story 2 (Zone 1)</option>
+            <option>Rooftop HVAC</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label>Show Air Loop</label>
+          <select class="control-select" id="airloop-mode">
+            <option>Baseline Constant Volume</option>
+            <option>RetrofitIQ VFD VAV</option>
+          </select>
+        </div>
+
+        <div class="section-title">Surface Filters</div>
+        <div class="filter-grid">
+          <label class="filter-item"><input type="checkbox" id="chk-floors" checked> Show Floors</label>
+          <label class="filter-item"><input type="checkbox" id="chk-cutaway" checked> Cutaway Walls</label>
+          <label class="filter-item"><input type="checkbox" id="chk-roof" checked> Show Roofs</label>
+          <label class="filter-item"><input type="checkbox" id="chk-ducts" checked> HVAC Ducts</label>
+          <label class="filter-item"><input type="checkbox" id="chk-flow" checked> Airflow Flow</label>
+          <label class="filter-item"><input type="checkbox" id="chk-furniture" checked> Furniture</label>
+          <label class="filter-item"><input type="checkbox" id="chk-zones" checked> Zone Glow</label>
+          <label class="filter-item"><input type="checkbox" id="chk-pins" checked> Callout Pins</label>
+        </div>
+
+        <div class="section-title">Camera Presets</div>
+        <div class="btn-group">
+          <button class="cam-btn" onclick="setCameraView('iso')">Isometric</button>
+          <button class="cam-btn" onclick="setCameraView('ahu')">Rooftop AHU</button>
+          <button class="cam-btn" onclick="setCameraView('zone1')">Zone 1</button>
+          <button class="cam-btn" onclick="setCameraView('zone2')">Zone 2</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="legend-card">
+      <div class="legend-title">HVAC Components (Visible)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#0284c7;"></div> AHU (Air Handling Unit)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#38bdf8;"></div> Supply Duct (Cold Air)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#f97316;"></div> Return Duct (Warm Air)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#a855f7;"></div> Cooling Coil (DX)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#22c55e;"></div> Supply Fan (VFD)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#64748b;"></div> Rooftop Unit / Exhaust</div>
+      
+      <div class="legend-title" style="margin-top:10px;">Thermal Zones</div>
+      <div class="legend-item"><div class="legend-box" style="background:#06b6d4;"></div> Zone 1 (Upper Story)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#ec4899;"></div> Zone 2 (Ground Story)</div>
+    </div>
+
+    <div id="brand-card">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5c0 2.65 2.15 4.5 4.5 4.5.64 0 1.25-.13 1.81-.37C11.5 15.5 14 11 17 8z"/></svg>
+      </div>
+      <div class="brand-text">
+        <h3>RetrofitIQ</h3>
+        <p>Smarter Buildings. Greener Tomorrow.</p>
+      </div>
+    </div>
+
+    <div id="callouts-container"></div>
+  </div>
+
+  <script>
+    const container = document.getElementById('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x7da4bd);
+    scene.fog = new THREE.FogExp2(0x7da4bd, 0.008);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.5, 1000);
+    camera.position.set(42, 28, 42);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 5, 0);
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.4);
+    sunLight.position.set(35, 55, 30);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 5;
+    sunLight.shadow.camera.far = 120;
+    sunLight.shadow.camera.left = -30;
+    sunLight.shadow.camera.right = 30;
+    sunLight.shadow.camera.top = 30;
+    sunLight.shadow.camera.bottom = -30;
+    sunLight.shadow.bias = -0.0005;
+    scene.add(sunLight);
+
+    const fillLight = new THREE.DirectionalLight(0x90c5f0, 0.4);
+    fillLight.position.set(-30, 20, -30);
+    scene.add(fillLight);
+
+    const buildingGroup = new THREE.Group();
+    const cutawayWallsGroup = new THREE.Group();
+    const solidWallsGroup = new THREE.Group();
+    const roofGroup = new THREE.Group();
+    const floorsGroup = new THREE.Group();
+    const hvacGroup = new THREE.Group();
+    const furnitureGroup = new THREE.Group();
+    const zonesGroup = new THREE.Group();
+    const diffusersGroup = new THREE.Group();
+    scene.add(buildingGroup);
+    buildingGroup.add(cutawayWallsGroup, solidWallsGroup, roofGroup, floorsGroup, hvacGroup, furnitureGroup, zonesGroup, diffusersGroup);
+
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.9 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const lawnMat = new THREE.MeshStandardMaterial({ color: 0x3d6634, roughness: 0.85 });
+    const lawn = new THREE.Mesh(new THREE.PlaneGeometry(60, 50), lawnMat);
+    lawn.rotation.x = -Math.PI / 2;
+    lawn.position.set(0, 0.02, 0);
+    lawn.receiveShadow = true;
+    scene.add(lawn);
+
+    const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x2c3338, roughness: 0.8 });
+    const asphalt = new THREE.Mesh(new THREE.PlaneGeometry(45, 30), asphaltMat);
+    asphalt.rotation.x = -Math.PI / 2;
+    asphalt.position.set(-6, 0.04, 24);
+    asphalt.receiveShadow = true;
+    scene.add(asphalt);
+
+    function createTree(x, z, scale=1) {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2*scale, 0.3*scale, 2.5*scale, 8),
+        new THREE.MeshStandardMaterial({ color: 0x5c4033 })
+      );
+      trunk.position.y = 1.25 * scale;
+      trunk.castShadow = true;
+      const foliage = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.5*scale, 1),
+        new THREE.MeshStandardMaterial({ color: 0x2e5c2e, roughness: 0.7 })
+      );
+      foliage.position.y = 2.8 * scale;
+      foliage.castShadow = true;
+      tree.add(trunk, foliage);
+      tree.position.set(x, 0, z);
+      scene.add(tree);
+    }
+    createTree(-18, 12, 1.2);
+    createTree(-21, 6, 1.1);
+    createTree(-20, -5, 1.4);
+    createTree(-17, -15, 1.3);
+    createTree(18, -12, 1.2);
+    createTree(19, 2, 1.3);
+
+    for(let x = -12; x <= 14; x += 2.2) {
+      const bush = new THREE.Mesh(
+        new THREE.SphereGeometry(0.7, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x3a6b2c, roughness: 0.8 })
+      );
+      bush.scale.set(1.2, 0.8, 1);
+      bush.position.set(x, 0.5, 12.8);
+      bush.castShadow = true;
+      scene.add(bush);
+    }
+
+    const bW = 22, bD = 18, storyH = 4.5, totalH = storyH * 2;
+    const slabThick = 0.35;
+
+    const slabMat = new THREE.MeshStandardMaterial({ color: 0xd8dcd6, roughness: 0.4 });
+    const f1Slab = new THREE.Mesh(new THREE.BoxGeometry(bW + 1, slabThick, bD + 1), slabMat);
+    f1Slab.position.set(0, slabThick/2, 0);
+    f1Slab.receiveShadow = true;
+    floorsGroup.add(f1Slab);
+
+    const f2Slab = new THREE.Mesh(new THREE.BoxGeometry(bW, slabThick, bD), slabMat);
+    f2Slab.position.set(0, storyH, 0);
+    f2Slab.receiveShadow = true;
+    f2Slab.castShadow = true;
+    floorsGroup.add(f2Slab);
+
+    const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.8, slabThick, bD + 0.8), slabMat);
+    roofSlab.position.set(0, totalH, 0);
+    roofSlab.castShadow = true;
+    roofGroup.add(roofSlab);
+
+    const parapetMat = new THREE.MeshStandardMaterial({ color: 0x8a929a });
+    const parapetH = 0.8;
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.8, parapetH, 0.3), parapetMat);
+    p1.position.set(0, totalH + parapetH/2, -bD/2 - 0.25);
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, parapetH, bD + 0.8), parapetMat);
+    p2.position.set(-bW/2 - 0.25, totalH + parapetH/2, 0);
+    roofGroup.add(p1, p2);
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xb58b68, roughness: 0.6 });
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(bW, totalH, 0.4), wallMat);
+    backWall.position.set(0, totalH/2, -bD/2);
+    backWall.castShadow = true;
+    solidWallsGroup.add(backWall);
+
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, totalH, bD), wallMat);
+    leftWall.position.set(-bW/2, totalH/2, 0);
+    leftWall.castShadow = true;
+    solidWallsGroup.add(leftWall);
+
+    const colMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3 });
+    function addColumn(x, z) {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(0.6, totalH, 0.6), colMat);
+      col.position.set(x, totalH/2, z);
+      col.castShadow = true;
+      buildingGroup.add(col);
+    }
+    addColumn(-bW/2 + 0.3, bD/2 - 0.3);
+    addColumn(bW/2 - 0.3, -bD/2 + 0.3);
+    addColumn(-bW/2 + 0.3, -bD/2 + 0.3);
+
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.22,
+      roughness: 0.1,
+      metalness: 0.1,
+      transmission: 0.85,
+      ior: 1.5,
+      reflectivity: 0.9,
+      depthWrite: false
+    });
+    
+    const cutawayFront = new THREE.Mesh(new THREE.PlaneGeometry(bW, totalH), glassMat);
+    cutawayFront.position.set(0, totalH/2, bD/2);
+    const cutawayRight = new THREE.Mesh(new THREE.PlaneGeometry(bD, totalH), glassMat);
+    cutawayRight.position.set(bW/2, totalH/2, 0);
+    cutawayRight.rotation.y = Math.PI/2;
+    cutawayWallsGroup.add(cutawayFront, cutawayRight);
+
+    const canopyMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(7, 0.3, 4), canopyMat);
+    canopy.position.set(-3, 3.2, bD/2 + 2);
+    const cPost1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.2), canopyMat);
+    cPost1.position.set(-6, 1.6, bD/2 + 3.8);
+    const cPost2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.2), canopyMat);
+    cPost2.position.set(0, 1.6, bD/2 + 3.8);
+    buildingGroup.add(canopy, cPost1, cPost2);
+
+    const zone1VolMat = new THREE.MeshStandardMaterial({
+      color: 0x06b6d4,
+      transparent: true,
+      opacity: 0.14,
+      roughness: 0.2,
+      side: THREE.BackSide,
+      depthWrite: false
+    });
+    const zone1Mesh = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.8, storyH - 0.6, bD - 0.8), zone1VolMat);
+    zone1Mesh.position.set(0, storyH + storyH/2 - 0.1, 0);
+    zonesGroup.add(zone1Mesh);
+
+    const zone2VolMat = new THREE.MeshStandardMaterial({
+      color: 0xec4899,
+      transparent: true,
+      opacity: 0.14,
+      roughness: 0.2,
+      side: THREE.BackSide,
+      depthWrite: false
+    });
+    const zone2Mesh = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.8, storyH - 0.6, bD - 0.8), zone2VolMat);
+    zone2Mesh.position.set(0, storyH/2 + 0.1, 0);
+    zonesGroup.add(zone2Mesh);
+
+    const deskMat = new THREE.MeshStandardMaterial({ color: 0x8a7058, roughness: 0.5 });
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+    const screenMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 });
+
+    function createWorkstation(x, y, z) {
+      const ws = new THREE.Group();
+      const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 1.4), deskMat);
+      top.position.y = 0.75;
+      const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg1.position.set(-1.1, 0.375, -0.6);
+      const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg2.position.set(1.1, 0.375, -0.6);
+      const leg3 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg3.position.set(-1.1, 0.375, 0.6);
+      const leg4 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg4.position.set(1.1, 0.375, 0.6);
+      const mon = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.05), screenMat);
+      mon.position.set(0, 1.1, -0.3);
+      const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), chairMat);
+      chairSeat.position.set(0, 0.45, 0.45);
+      const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.08), chairMat);
+      chairBack.position.set(0, 0.7, 0.68);
+      ws.add(top, leg1, leg2, leg3, leg4, mon, chairSeat, chairBack);
+      ws.position.set(x, y, z);
+      furnitureGroup.add(ws);
+    }
+
+    createWorkstation(-5, storyH + slabThick, 3);
+    createWorkstation(-1, storyH + slabThick, 3);
+    createWorkstation(4, storyH + slabThick, 3);
+    createWorkstation(-5, storyH + slabThick, -3);
+    createWorkstation(-1, storyH + slabThick, -3);
+    createWorkstation(4, storyH + slabThick, -3);
+
+    createWorkstation(-5, slabThick, 3);
+    createWorkstation(-1, slabThick, 3);
+    createWorkstation(4, slabThick, 3);
+    createWorkstation(-5, slabThick, -3);
+    createWorkstation(-1, slabThick, -3);
+    createWorkstation(4, slabThick, -3);
+
+    const ahuX = 1, ahuY = totalH + slabThick/2 + 0.1, ahuZ = -3;
+    const ahuHousingMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.6, roughness: 0.3 });
+    const ahuInteriorMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.7 });
+
+    const ahuBase = new THREE.Mesh(new THREE.BoxGeometry(10, 2.2, 3.8), ahuHousingMat);
+    ahuBase.position.set(ahuX, ahuY + 1.1, ahuZ);
+    ahuBase.castShadow = true;
+    hvacGroup.add(ahuBase);
+
+    const ahuCutaway = new THREE.Mesh(new THREE.BoxGeometry(7, 2.0, 3.6), ahuInteriorMat);
+    ahuCutaway.position.set(ahuX + 0.5, ahuY + 1.1, ahuZ + 0.2);
+    hvacGroup.add(ahuCutaway);
+
+    const coilMat = new THREE.MeshStandardMaterial({ color: 0x9333ea, metalness: 0.8, roughness: 0.3, emissive: 0x3b0764, emissiveIntensity: 0.4 });
+    const coil = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 2.8), coilMat);
+    coil.position.set(ahuX - 1.2, ahuY + 1.1, ahuZ + 0.2);
+    hvacGroup.add(coil);
+
+    const fanHousingMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, metalness: 0.5, roughness: 0.4, emissive: 0x052e16, emissiveIntensity: 0.3 });
+    const fanWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.2, 16), fanHousingMat);
+    fanWheel.rotation.z = Math.PI / 2;
+    fanWheel.position.set(ahuX + 1.5, ahuY + 1.1, ahuZ + 0.2);
+    hvacGroup.add(fanWheel);
+
+    const fanMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.8, 12), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 }));
+    fanMotor.rotation.z = Math.PI / 2;
+    fanMotor.position.set(ahuX + 2.5, ahuY + 1.1, ahuZ + 0.2);
+    hvacGroup.add(fanMotor);
+
+    const exhaustBox = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 2.4), ahuHousingMat);
+    exhaustBox.position.set(ahuX + 6.5, ahuY + 1.2, ahuZ - 1);
+    exhaustBox.castShadow = true;
+    const exhaustCowl = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 1.0, 16), ahuHousingMat);
+    exhaustCowl.position.set(ahuX + 6.5, ahuY + 2.8, ahuZ - 1);
+    hvacGroup.add(exhaustBox, exhaustCowl);
+
+    const returnUnitBox = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.0, 2.6), ahuHousingMat);
+    returnUnitBox.position.set(ahuX + 6.5, ahuY + 1.0, ahuZ + 3.2);
+    returnUnitBox.castShadow = true;
+    hvacGroup.add(returnUnitBox);
+
+    const supplyDuctMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7,
+      metalness: 0.3,
+      roughness: 0.2,
+      emissive: 0x0369a1,
+      emissiveIntensity: 0.6
+    });
+
+    const returnDuctMat = new THREE.MeshStandardMaterial({
+      color: 0xea580c,
+      metalness: 0.3,
+      roughness: 0.2,
+      emissive: 0xc2410c,
+      emissiveIntensity: 0.6
+    });
+
+    function createDuctSegment(p1, p2, radius, mat) {
+      const v1 = new THREE.Vector3(...p1);
+      const v2 = new THREE.Vector3(...p2);
+      const dist = v1.distanceTo(v2);
+      const geom = new THREE.CylinderGeometry(radius, radius, dist, 12);
+      const mesh = new THREE.Mesh(geom, mat);
+      const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+      mesh.position.copy(mid);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v2.clone().sub(v1).normalize());
+      hvacGroup.add(mesh);
+      return mesh;
+    }
+
+    createDuctSegment([ahuX + 2.5, ahuY + 1.1, ahuZ + 0.2], [ahuX + 2.5, totalH, 0], 0.38, supplyDuctMat);
+    createDuctSegment([ahuX + 2.5, totalH, 0], [ahuX + 2.5, 2.5, 0], 0.38, supplyDuctMat);
+    
+    createDuctSegment([ahuX + 2.5, totalH - 0.7, 0], [-6, totalH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([ahuX + 2.5, totalH - 0.7, 0], [7, totalH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([-3, totalH - 0.7, 0], [-3, totalH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([-3, totalH - 0.7, 0], [-3, totalH - 0.7, -4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, totalH - 0.7, 0], [4, totalH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, totalH - 0.7, 0], [4, totalH - 0.7, -4.5], 0.22, supplyDuctMat);
+
+    createDuctSegment([ahuX + 2.5, storyH - 0.7, 0], [-6, storyH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([ahuX + 2.5, storyH - 0.7, 0], [7, storyH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([-3, storyH - 0.7, 0], [-3, storyH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([-3, storyH - 0.7, 0], [-3, storyH - 0.7, -4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, storyH - 0.7, 0], [4, storyH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, storyH - 0.7, 0], [4, storyH - 0.7, -4.5], 0.22, supplyDuctMat);
+
+    const diffMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.5 });
+    function addDiffuser(x, y, z) {
+      const diff = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.8), diffMat);
+      diff.position.set(x, y, z);
+      diffusersGroup.add(diff);
+    }
+    addDiffuser(-3, totalH - 0.8, 4.5);
+    addDiffuser(-3, totalH - 0.8, -4.5);
+    addDiffuser(4, totalH - 0.8, 4.5);
+    addDiffuser(4, totalH - 0.8, -4.5);
+    addDiffuser(-3, storyH - 0.8, 4.5);
+    addDiffuser(-3, storyH - 0.8, -4.5);
+    addDiffuser(4, storyH - 0.8, 4.5);
+    addDiffuser(4, storyH - 0.8, -4.5);
+
+    createDuctSegment([ahuX + 6.5, ahuY + 1.0, ahuZ + 3.2], [ahuX + 6.5, totalH, 2], 0.34, returnDuctMat);
+    createDuctSegment([ahuX + 6.5, totalH, 2], [ahuX + 6.5, 1.2, 2], 0.34, returnDuctMat);
+    createDuctSegment([ahuX + 6.5, totalH - 1.2, 2], [ahuX + 3.5, totalH - 1.2, 2], 0.26, returnDuctMat);
+    createDuctSegment([ahuX + 6.5, storyH - 1.2, 2], [ahuX + 3.5, storyH - 1.2, 2], 0.26, returnDuctMat);
+
+    const particleCount = 180;
+    const particleGeom = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleSpeeds = [];
+
+    for(let i = 0; i < particleCount; i++) {
+      particlePositions[i*3] = ahuX + 2.5 + (Math.random() - 0.5)*0.2;
+      particlePositions[i*3+1] = 1 + Math.random() * (totalH - 1);
+      particlePositions[i*3+2] = (Math.random() - 0.5)*8;
+      particleSpeeds.push(0.04 + Math.random()*0.04);
+    }
+    particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+    const particleMat = new THREE.PointsMaterial({
+      color: 0x38bdf8,
+      size: 0.35,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending
+    });
+    const particleSystem = new THREE.Points(particleGeom, particleMat);
+    hvacGroup.add(particleSystem);
+
+    const calloutsData = [
+      { id: 'ahu', name: 'AHU', sub: '(Air Handling Unit)', pos: new THREE.Vector3(ahuX - 1.5, ahuY + 2.4, ahuZ), cls: 'pin-ahu' },
+      { id: 'coil', name: 'Cooling Coil', sub: 'DX Refrigerant', pos: new THREE.Vector3(ahuX - 1.2, ahuY + 2.2, ahuZ + 0.2), cls: 'pin-coil' },
+      { id: 'fan', name: 'Supply Fan (VFD)', sub: 'Variable Frequency Drive', pos: new THREE.Vector3(ahuX + 1.8, ahuY + 2.2, ahuZ + 0.2), cls: 'pin-fan' },
+      { id: 'exhaust', name: 'Exhaust Fan', sub: 'Building Relief', pos: new THREE.Vector3(ahuX + 6.5, ahuY + 3.2, ahuZ - 1), cls: 'pin-ahu' },
+      { id: 'return-unit', name: 'Return Unit', sub: 'Plenum Recirculation', pos: new THREE.Vector3(ahuX + 6.5, ahuY + 2.4, ahuZ + 3.2), cls: 'pin-return' },
+      { id: 'supply-duct', name: 'Supply Duct', sub: 'Conditioned Air', pos: new THREE.Vector3(-1.0, totalH - 0.5, 2.5), cls: 'pin-zone1' },
+      { id: 'return-duct', name: 'Return Duct', sub: 'Plenum Air', pos: new THREE.Vector3(ahuX + 6.5, 4.5, 2), cls: 'pin-return' },
+      { id: 'zone1', name: 'Zone 1', sub: '(Thermal Zone 1 - 24°C)', pos: new THREE.Vector3(-6, storyH + 2.2, 5), cls: 'pin-zone1' },
+      { id: 'zone2', name: 'Zone 2', sub: '(Thermal Zone 2 - 24°C)', pos: new THREE.Vector3(6, 2.2, 5), cls: 'pin-zone2' }
+    ];
+
+    const calloutsContainer = document.getElementById('callouts-container');
+    const calloutElements = [];
+
+    calloutsData.forEach(c => {
+      const el = document.createElement('div');
+      el.className = `callout-pin ${c.cls}`;
+      el.innerHTML = `
+        <div class="pin-bubble">
+          <span>${c.name}</span>
+          <span class="pin-sub">${c.sub}</span>
+        </div>
+        <div class="pin-line"></div>
+        <div class="pin-dot"></div>
+      `;
+      calloutsContainer.appendChild(el);
+      calloutElements.push({ el, pos: c.pos });
+    });
+
+    function updateCallouts() {
+      const showPins = document.getElementById('chk-pins').checked;
+      if (!showPins) {
+        calloutsContainer.style.display = 'none';
+        return;
+      }
+      calloutsContainer.style.display = 'block';
+
+      const tempV = new THREE.Vector3();
+      calloutElements.forEach(item => {
+        tempV.copy(item.pos);
+        tempV.project(camera);
+
+        if (tempV.z > 1) {
+          item.el.style.opacity = '0';
+          return;
+        }
+
+        const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(tempV.y * 0.5) + 0.5) * window.innerHeight;
+
+        item.el.style.left = `${x}px`;
+        item.el.style.top = `${y}px`;
+        item.el.style.opacity = '1';
+      });
+    }
+
+    function setCameraView(view) {
+      if (view === 'iso') {
+        gsapAnimateCamera(42, 28, 42, 0, 5, 0);
+      } else if (view === 'ahu') {
+        gsapAnimateCamera(ahuX + 6, ahuY + 6, ahuZ + 8, ahuX + 2, ahuY + 1.5, ahuZ);
+      } else if (view === 'zone1') {
+        gsapAnimateCamera(8, storyH + 3, 16, 0, storyH + 1.5, 0);
+      } else if (view === 'zone2') {
+        gsapAnimateCamera(14, 4, 16, 0, 2, 0);
+      }
+    }
+
+    function gsapAnimateCamera(cx, cy, cz, tx, ty, tz) {
+      const startCam = camera.position.clone();
+      const startTgt = controls.target.clone();
+      const endCam = new THREE.Vector3(cx, cy, cz);
+      const endTgt = new THREE.Vector3(tx, ty, tz);
+      let progress = 0;
+
+      function step() {
+        progress += 0.05;
+        camera.position.lerpVectors(startCam, endCam, progress);
+        controls.target.lerpVectors(startTgt, endTgt, progress);
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      step();
+    }
+
+    document.getElementById('chk-floors').addEventListener('change', e => { floorsGroup.visible = e.target.checked; });
+    document.getElementById('chk-cutaway').addEventListener('change', e => { cutawayWallsGroup.visible = e.target.checked; });
+    document.getElementById('chk-roof').addEventListener('change', e => { roofGroup.visible = e.target.checked; });
+    document.getElementById('chk-ducts').addEventListener('change', e => { hvacGroup.visible = e.target.checked; diffusersGroup.visible = e.target.checked; });
+    document.getElementById('chk-furniture').addEventListener('change', e => { furnitureGroup.visible = e.target.checked; });
+    document.getElementById('chk-zones').addEventListener('change', e => { zonesGroup.visible = e.target.checked; });
+    
+    document.getElementById('airloop-mode').addEventListener('change', e => {
+      const mode = e.target.value;
+      if (mode === 'RetrofitIQ VFD VAV') {
+        document.getElementById('stat-retrofit').innerHTML = '614.8 MWh/yr <span style="font-size:11px;">(-27.9%)</span>';
+        supplyDuctMat.emissive.setHex(0x059669);
+        particleMat.color.setHex(0x34d399);
+      } else {
+        document.getElementById('stat-retrofit').innerHTML = '852.4 MWh/yr <span style="font-size:11px;">(Baseline)</span>';
+        supplyDuctMat.emissive.setHex(0x0369a1);
+        particleMat.color.setHex(0x38bdf8);
+      }
+    });
+
+    document.getElementById('render-mode').addEventListener('change', e => {
+      const val = e.target.value;
+      if (val === 'Thermal Zone') {
+        zone1VolMat.color.setHex(0x06b6d4);
+        zone2VolMat.color.setHex(0xec4899);
+      } else if (val === 'Space Type') {
+        zone1VolMat.color.setHex(0x3b82f6);
+        zone2VolMat.color.setHex(0x3b82f6);
+      } else {
+        zone1VolMat.color.setHex(0xf59e0b);
+        zone2VolMat.color.setHex(0xf59e0b);
+      }
+    });
+
+    document.getElementById('story-mode').addEventListener('change', e => {
+      const val = e.target.value;
+      zone1Mesh.visible = (val === 'All Stories' || val === 'Story 2 (Zone 1)');
+      zone2Mesh.visible = (val === 'All Stories' || val === 'Story 1 (Zone 2)');
+      roofGroup.visible = (val === 'All Stories' || val === 'Rooftop HVAC');
+    });
+
+    let clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      if (document.getElementById('chk-flow').checked && hvacGroup.visible) {
+        particleSystem.visible = true;
+        const pos = particleGeom.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+          pos[i*3 + 1] -= particleSpeeds[i] * 4.0;
+          if (pos[i*3 + 1] < 1.0) {
+            pos[i*3 + 1] = totalH;
+          }
+        }
+        particleGeom.attributes.position.needsUpdate = true;
+      } else {
+        particleSystem.visible = false;
+      }
+
+      controls.update();
+      updateCallouts();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

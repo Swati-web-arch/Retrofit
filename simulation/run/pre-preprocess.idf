@@ -1,0 +1,1033 @@
+
+Version,
+  25.2;                                   !- Version Identifier
+
+Timestep,
+  6;                                      !- Number of Timesteps per Hour
+
+LifeCycleCost:Parameters,
+  Life Cycle Cost Parameters,             !- Name
+  EndOfYear,                              !- Discounting Convention
+  ConstantDollar,                         !- Inflation Approach
+  0.03,                                   !- Real Discount Rate
+  ,                                       !- Nominal Discount Rate
+  ,                                       !- Inflation
+  ,                                       !- Base Date Month
+  2011,                                   !- Base Date Year
+  ,                                       !- Service Date Month
+  2011,                                   !- Service Date Year
+  25,                                     !- Length of Study Period in Years
+  ,                                       !- Tax rate
+  None;                                   !- Depreciation Method
+
+LifeCycleCost:UsePriceEscalation,
+  U.S. Avg  Commercial-Electricity,       !- Name
+  Electricity,                            !- Resource
+  2011,                                   !- Escalation Start Year
+  January,                                !- Escalation Start Month
+  0.9838,                                 !- Year Escalation 1
+  0.9730,                                 !- Year Escalation 2
+  0.9632,                                 !- Year Escalation 3
+  0.9611,                                 !- Year Escalation 4
+  0.9571,                                 !- Year Escalation 5
+  0.9553,                                 !- Year Escalation 6
+  0.9539,                                 !- Year Escalation 7
+  0.9521,                                 !- Year Escalation 8
+  0.9546,                                 !- Year Escalation 9
+  0.9550,                                 !- Year Escalation 10
+  0.9553,                                 !- Year Escalation 11
+  0.9564,                                 !- Year Escalation 12
+  0.9575,                                 !- Year Escalation 13
+  0.9596,                                 !- Year Escalation 14
+  0.9618,                                 !- Year Escalation 15
+  0.9614,                                 !- Year Escalation 16
+  0.9618,                                 !- Year Escalation 17
+  0.9618,                                 !- Year Escalation 18
+  0.9593,                                 !- Year Escalation 19
+  0.9589,                                 !- Year Escalation 20
+  0.9607,                                 !- Year Escalation 21
+  0.9625,                                 !- Year Escalation 22
+  0.9650,                                 !- Year Escalation 23
+  0.9708,                                 !- Year Escalation 24
+  0.9751,                                 !- Year Escalation 25
+  0.9762,                                 !- Year Escalation 26
+  0.9766,                                 !- Year Escalation 27
+  0.9766,                                 !- Year Escalation 28
+  0.9769,                                 !- Year Escalation 29
+  0.9773;                                 !- Year Escalation 30
+
+LifeCycleCost:UsePriceEscalation,
+  U.S. Avg  Commercial-Distillate Oil,    !- Name
+  FuelOilNo1,                             !- Resource
+  2011,                                   !- Escalation Start Year
+  January,                                !- Escalation Start Month
+  0.9714,                                 !- Year Escalation 1
+  0.9730,                                 !- Year Escalation 2
+  0.9942,                                 !- Year Escalation 3
+  1.0164,                                 !- Year Escalation 4
+  1.0541,                                 !- Year Escalation 5
+  1.0928,                                 !- Year Escalation 6
+  1.1267,                                 !- Year Escalation 7
+  1.1580,                                 !- Year Escalation 8
+  1.1792,                                 !- Year Escalation 9
+  1.1967,                                 !- Year Escalation 10
+  1.2200,                                 !- Year Escalation 11
+  1.2333,                                 !- Year Escalation 12
+  1.2566,                                 !- Year Escalation 13
+  1.2709,                                 !- Year Escalation 14
+  1.2826,                                 !- Year Escalation 15
+  1.2985,                                 !- Year Escalation 16
+  1.3102,                                 !- Year Escalation 17
+  1.3250,                                 !- Year Escalation 18
+  1.3261,                                 !- Year Escalation 19
+  1.3282,                                 !- Year Escalation 20
+  1.3324,                                 !- Year Escalation 21
+  1.3356,                                 !- Year Escalation 22
+  1.3431,                                 !- Year Escalation 23
+  1.3510,                                 !- Year Escalation 24
+  1.3568,                                 !- Year Escalation 25
+  1.3606,                                 !- Year Escalation 26
+  1.3637,                                 !- Year Escalation 27
+  1.3674,                                 !- Year Escalation 28
+  1.3706,                                 !- Year Escalation 29
+  1.3743;                                 !- Year Escalation 30
+
+LifeCycleCost:UsePriceEscalation,
+  U.S. Avg  Commercial-Residual Oil,      !- Name
+  FuelOilNo2,                             !- Resource
+  2011,                                   !- Escalation Start Year
+  January,                                !- Escalation Start Month
+  0.8469,                                 !- Year Escalation 1
+  0.8257,                                 !- Year Escalation 2
+  0.8681,                                 !- Year Escalation 3
+  0.8988,                                 !- Year Escalation 4
+  0.9289,                                 !- Year Escalation 5
+  0.9604,                                 !- Year Escalation 6
+  0.9897,                                 !- Year Escalation 7
+  1.0075,                                 !- Year Escalation 8
+  1.0314,                                 !- Year Escalation 9
+  1.0554,                                 !- Year Escalation 10
+  1.0861,                                 !- Year Escalation 11
+  1.1278,                                 !- Year Escalation 12
+  1.1497,                                 !- Year Escalation 13
+  1.1620,                                 !- Year Escalation 14
+  1.1743,                                 !- Year Escalation 15
+  1.1852,                                 !- Year Escalation 16
+  1.1948,                                 !- Year Escalation 17
+  1.2037,                                 !- Year Escalation 18
+  1.2071,                                 !- Year Escalation 19
+  1.2119,                                 !- Year Escalation 20
+  1.2139,                                 !- Year Escalation 21
+  1.2194,                                 !- Year Escalation 22
+  1.2276,                                 !- Year Escalation 23
+  1.2365,                                 !- Year Escalation 24
+  1.2420,                                 !- Year Escalation 25
+  1.2461,                                 !- Year Escalation 26
+  1.2509,                                 !- Year Escalation 27
+  1.2550,                                 !- Year Escalation 28
+  1.2591,                                 !- Year Escalation 29
+  1.2638;                                 !- Year Escalation 30
+
+LifeCycleCost:UsePriceEscalation,
+  U.S. Avg  Commercial-Natural gas,       !- Name
+  NaturalGas,                             !- Resource
+  2011,                                   !- Escalation Start Year
+  January,                                !- Escalation Start Month
+  0.9823,                                 !- Year Escalation 1
+  0.9557,                                 !- Year Escalation 2
+  0.9279,                                 !- Year Escalation 3
+  0.9257,                                 !- Year Escalation 4
+  0.9346,                                 !- Year Escalation 5
+  0.9412,                                 !- Year Escalation 6
+  0.9512,                                 !- Year Escalation 7
+  0.9645,                                 !- Year Escalation 8
+  0.9856,                                 !- Year Escalation 9
+  1.0067,                                 !- Year Escalation 10
+  1.0222,                                 !- Year Escalation 11
+  1.0410,                                 !- Year Escalation 12
+  1.0610,                                 !- Year Escalation 13
+  1.0787,                                 !- Year Escalation 14
+  1.0942,                                 !- Year Escalation 15
+  1.1098,                                 !- Year Escalation 16
+  1.1220,                                 !- Year Escalation 17
+  1.1308,                                 !- Year Escalation 18
+  1.1386,                                 !- Year Escalation 19
+  1.1486,                                 !- Year Escalation 20
+  1.1619,                                 !- Year Escalation 21
+  1.1763,                                 !- Year Escalation 22
+  1.1918,                                 !- Year Escalation 23
+  1.2118,                                 !- Year Escalation 24
+  1.2284,                                 !- Year Escalation 25
+  1.2439,                                 !- Year Escalation 26
+  1.2605,                                 !- Year Escalation 27
+  1.2772,                                 !- Year Escalation 28
+  1.2938,                                 !- Year Escalation 29
+  1.3115;                                 !- Year Escalation 30
+
+LifeCycleCost:UsePriceEscalation,
+  U.S. Avg  Commercial-Coal,              !- Name
+  Coal,                                   !- Resource
+  2011,                                   !- Escalation Start Year
+  January,                                !- Escalation Start Month
+  0.9970,                                 !- Year Escalation 1
+  1.0089,                                 !- Year Escalation 2
+  1.0089,                                 !- Year Escalation 3
+  0.9941,                                 !- Year Escalation 4
+  0.9941,                                 !- Year Escalation 5
+  1.0000,                                 !- Year Escalation 6
+  1.0030,                                 !- Year Escalation 7
+  1.0059,                                 !- Year Escalation 8
+  1.0089,                                 !- Year Escalation 9
+  1.0119,                                 !- Year Escalation 10
+  1.0148,                                 !- Year Escalation 11
+  1.0178,                                 !- Year Escalation 12
+  1.0208,                                 !- Year Escalation 13
+  1.0267,                                 !- Year Escalation 14
+  1.0297,                                 !- Year Escalation 15
+  1.0356,                                 !- Year Escalation 16
+  1.0415,                                 !- Year Escalation 17
+  1.0534,                                 !- Year Escalation 18
+  1.0564,                                 !- Year Escalation 19
+  1.0593,                                 !- Year Escalation 20
+  1.0653,                                 !- Year Escalation 21
+  1.0712,                                 !- Year Escalation 22
+  1.0742,                                 !- Year Escalation 23
+  1.0801,                                 !- Year Escalation 24
+  1.0831,                                 !- Year Escalation 25
+  1.0831,                                 !- Year Escalation 26
+  1.0861,                                 !- Year Escalation 27
+  1.0890,                                 !- Year Escalation 28
+  1.0920,                                 !- Year Escalation 29
+  1.0950;                                 !- Year Escalation 30
+
+Building,
+  RetrofitIQ_Test_Office,                 !- Name
+  ,                                       !- North Axis {deg}
+  ,                                       !- Terrain
+  ,                                       !- Loads Convergence Tolerance Value {W}
+  ,                                       !- Temperature Convergence Tolerance Value {deltaC}
+  ,                                       !- Solar Distribution
+  ,                                       !- Maximum Number of Warmup Days
+  ;                                       !- Minimum Number of Warmup Days
+
+Zone,
+  Office_Floor_1 Thermal Zone,            !- Name
+  ,                                       !- Direction of Relative North {deg}
+  0,                                      !- X Origin {m}
+  0,                                      !- Y Origin {m}
+  0,                                      !- Z Origin {m}
+  ,                                       !- Type
+  1,                                      !- Multiplier
+  ,                                       !- Ceiling Height {m}
+  ,                                       !- Volume {m3}
+  ,                                       !- Floor Area {m2}
+  ,                                       !- Zone Inside Convection Algorithm
+  ,                                       !- Zone Outside Convection Algorithm
+  Yes;                                    !- Part of Total Floor Area
+
+Space,
+  Office_Floor_1,                         !- Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  ,                                       !- Ceiling Height {m}
+  ,                                       !- Volume {m3}
+  ;                                       !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Ceiling_1,                              !- Name
+  Ceiling,                                !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1,                         !- Space Name
+  Surface,                                !- Outside Boundary Condition
+  Floor_2,                                !- Outside Boundary Condition Object
+  NoSun,                                  !- Sun Exposure
+  NoWind,                                 !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 0, 3,                                !- X,Y,Z Vertex 1 {m}
+  25, 0, 3,                               !- X,Y,Z Vertex 2 {m}
+  25, 20, 3,                              !- X,Y,Z Vertex 3 {m}
+  0, 20, 3;                               !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_1,                                !- Name
+  Floor,                                  !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1,                         !- Space Name
+  Ground,                                 !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  NoSun,                                  !- Sun Exposure
+  NoWind,                                 !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 20, 0,                               !- X,Y,Z Vertex 1 {m}
+  25, 20, 0,                              !- X,Y,Z Vertex 2 {m}
+  25, 0, 0,                               !- X,Y,Z Vertex 3 {m}
+  0, 0, 0;                                !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_1_Wall_1,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 0, 0,                                !- X,Y,Z Vertex 1 {m}
+  25, 0, 0,                               !- X,Y,Z Vertex 2 {m}
+  25, 0, 3,                               !- X,Y,Z Vertex 3 {m}
+  0, 0, 3;                                !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_1_Wall_2,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  25, 0, 0,                               !- X,Y,Z Vertex 1 {m}
+  25, 20, 0,                              !- X,Y,Z Vertex 2 {m}
+  25, 20, 3,                              !- X,Y,Z Vertex 3 {m}
+  25, 0, 3;                               !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_1_Wall_3,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  25, 20, 0,                              !- X,Y,Z Vertex 1 {m}
+  0, 20, 0,                               !- X,Y,Z Vertex 2 {m}
+  0, 20, 3,                               !- X,Y,Z Vertex 3 {m}
+  25, 20, 3;                              !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_1_Wall_4,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 20, 0,                               !- X,Y,Z Vertex 1 {m}
+  0, 0, 0,                                !- X,Y,Z Vertex 2 {m}
+  0, 0, 3,                                !- X,Y,Z Vertex 3 {m}
+  0, 20, 3;                               !- X,Y,Z Vertex 4 {m}
+
+Lights,
+  Office Lights - Office_Floor_1,         !- Name
+  Office_Floor_1,                         !- Zone or ZoneList or Space or SpaceList Name
+  Always On,                              !- Schedule Name
+  Watts/Area,                             !- Design Level Calculation Method
+  ,                                       !- Lighting Level {W}
+  10,                                     !- Watts per Floor Area {W/m2}
+  ,                                       !- Watts per Person {W/person}
+  ,                                       !- Return Air Fraction
+  ,                                       !- Fraction Radiant
+  ,                                       !- Fraction Visible
+  1,                                      !- Fraction Replaceable
+  General;                                !- End-Use Subcategory
+
+Schedule:Constant,
+  Always On,                              !- Name
+  Fraction Schedule Limits,               !- Schedule Type Limits Name
+  1;                                      !- Hourly Value
+
+People,
+  Office Occupancy - Office_Floor_1,      !- Name
+  Office_Floor_1,                         !- Zone or ZoneList or Space or SpaceList Name
+  Always On,                              !- Number of People Schedule Name
+  People,                                 !- Number of People Calculation Method
+  10,                                     !- Number of People
+  ,                                       !- People per Floor Area {person/m2}
+  ,                                       !- Floor Area per Person {m2/person}
+  0.3,                                    !- Fraction Radiant
+  ,                                       !- Sensible Heat Fraction
+  Office Activity Level,                  !- Activity Level Schedule Name
+  ,                                       !- Carbon Dioxide Generation Rate {m3/s-W}
+  ,                                       !- Enable ASHRAE 55 Comfort Warnings
+  ,                                       !- Mean Radiant Temperature Calculation Type
+  ,                                       !- Surface Name/Angle Factor List Name
+  ,                                       !- Work Efficiency Schedule Name
+  ClothingInsulationSchedule;             !- Clothing Insulation Calculation Method
+
+Schedule:Constant,
+  Office Activity Level,                  !- Name
+  Activity Level Schedule Limits,         !- Schedule Type Limits Name
+  120;                                    !- Hourly Value
+
+ElectricEquipment,
+  Office Equipment - Office_Floor_1,      !- Name
+  Office_Floor_1,                         !- Zone or ZoneList or Space or SpaceList Name
+  Always On,                              !- Schedule Name
+  Watts/Area,                             !- Design Level Calculation Method
+  ,                                       !- Design Level {W}
+  8,                                      !- Watts per Floor Area {W/m2}
+  ,                                       !- Watts per Person {W/person}
+  ,                                       !- Fraction Latent
+  ,                                       !- Fraction Radiant
+  ,                                       !- Fraction Lost
+  General;                                !- End-Use Subcategory
+
+ZoneHVAC:EquipmentConnections,
+  Office_Floor_1 Thermal Zone,            !- Zone Name
+  Office_Floor_1 Thermal Zone Equipment List, !- Zone Conditioning Equipment List Name
+  Office_Floor_1 Thermal Zone Inlet Node List, !- Zone Air Inlet Node or NodeList Name
+  ,                                       !- Zone Air Exhaust Node or NodeList Name
+  Node 1,                                 !- Zone Air Node Name
+  Office_Floor_1 Thermal Zone Return Node List; !- Zone Return Air Node or NodeList Name
+
+NodeList,
+  Office_Floor_1 Thermal Zone Inlet Node List, !- Name
+  Node 11;                                !- Node Name 1
+
+NodeList,
+  Office_Floor_1 Thermal Zone Return Node List, !- Name
+  Node 12;                                !- Node Name 1
+
+ZoneHVAC:AirDistributionUnit,
+  ADU VAV Terminal - Office_Floor_1 Thermal Zone, !- Name
+  Node 11,                                !- Air Distribution Unit Outlet Node Name
+  AirTerminal:SingleDuct:VAV:NoReheat,    !- Air Terminal Object Type
+  VAV Terminal - Office_Floor_1 Thermal Zone; !- Air Terminal Name
+
+AirTerminal:SingleDuct:VAV:NoReheat,
+  VAV Terminal - Office_Floor_1 Thermal Zone, !- Name
+  Always On Discrete,                     !- Availability Schedule Name
+  Node 11,                                !- Air Outlet Node Name
+  Node 13,                                !- Air Inlet Node Name
+  0.5,                                    !- Maximum Air Flow Rate {m3/s}
+  Constant,                               !- Zone Minimum Air Flow Input Method
+  0.3,                                    !- Constant Minimum Air Flow Fraction
+  Autosize;                               !- Fixed Minimum Air Flow Rate {m3/s}
+
+Schedule:Constant,
+  Always On Discrete,                     !- Name
+  OnOff,                                  !- Schedule Type Limits Name
+  1;                                      !- Hourly Value
+
+ZoneHVAC:EquipmentList,
+  Office_Floor_1 Thermal Zone Equipment List, !- Name
+  SequentialLoad,                         !- Load Distribution Scheme
+  ZoneHVAC:AirDistributionUnit,           !- Zone Equipment Object Type 1
+  ADU VAV Terminal - Office_Floor_1 Thermal Zone, !- Zone Equipment Name 1
+  1,                                      !- Zone Equipment Cooling Sequence 1
+  1,                                      !- Zone Equipment Heating or No-Load Sequence 1
+  ,                                       !- Zone Equipment Sequential Cooling Fraction Schedule Name 1
+  ;                                       !- Zone Equipment Sequential Heating Fraction Schedule Name 1
+
+Zone,
+  Office_Floor_2 Thermal Zone,            !- Name
+  ,                                       !- Direction of Relative North {deg}
+  0,                                      !- X Origin {m}
+  0,                                      !- Y Origin {m}
+  0,                                      !- Z Origin {m}
+  ,                                       !- Type
+  1,                                      !- Multiplier
+  ,                                       !- Ceiling Height {m}
+  ,                                       !- Volume {m3}
+  ,                                       !- Floor Area {m2}
+  ,                                       !- Zone Inside Convection Algorithm
+  ,                                       !- Zone Outside Convection Algorithm
+  Yes;                                    !- Part of Total Floor Area
+
+Space,
+  Office_Floor_2,                         !- Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  ,                                       !- Ceiling Height {m}
+  ,                                       !- Volume {m3}
+  ;                                       !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Ceiling_2,                              !- Name
+  Roof,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 0, 6,                                !- X,Y,Z Vertex 1 {m}
+  25, 0, 6,                               !- X,Y,Z Vertex 2 {m}
+  25, 20, 6,                              !- X,Y,Z Vertex 3 {m}
+  0, 20, 6;                               !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_2,                                !- Name
+  Floor,                                  !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2,                         !- Space Name
+  Surface,                                !- Outside Boundary Condition
+  Ceiling_1,                              !- Outside Boundary Condition Object
+  NoSun,                                  !- Sun Exposure
+  NoWind,                                 !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 20, 3,                               !- X,Y,Z Vertex 1 {m}
+  25, 20, 3,                              !- X,Y,Z Vertex 2 {m}
+  25, 0, 3,                               !- X,Y,Z Vertex 3 {m}
+  0, 0, 3;                                !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_2_Wall_1,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 0, 3,                                !- X,Y,Z Vertex 1 {m}
+  25, 0, 3,                               !- X,Y,Z Vertex 2 {m}
+  25, 0, 6,                               !- X,Y,Z Vertex 3 {m}
+  0, 0, 6;                                !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_2_Wall_2,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  25, 0, 3,                               !- X,Y,Z Vertex 1 {m}
+  25, 20, 3,                              !- X,Y,Z Vertex 2 {m}
+  25, 20, 6,                              !- X,Y,Z Vertex 3 {m}
+  25, 0, 6;                               !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_2_Wall_3,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  25, 20, 3,                              !- X,Y,Z Vertex 1 {m}
+  0, 20, 3,                               !- X,Y,Z Vertex 2 {m}
+  0, 20, 6,                               !- X,Y,Z Vertex 3 {m}
+  25, 20, 6;                              !- X,Y,Z Vertex 4 {m}
+
+BuildingSurface:Detailed,
+  Floor_2_Wall_4,                         !- Name
+  Wall,                                   !- Surface Type
+  Basic Construction,                     !- Construction Name
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2,                         !- Space Name
+  Outdoors,                               !- Outside Boundary Condition
+  ,                                       !- Outside Boundary Condition Object
+  SunExposed,                             !- Sun Exposure
+  WindExposed,                            !- Wind Exposure
+  ,                                       !- View Factor to Ground
+  ,                                       !- Number of Vertices
+  0, 20, 3,                               !- X,Y,Z Vertex 1 {m}
+  0, 0, 3,                                !- X,Y,Z Vertex 2 {m}
+  0, 0, 6,                                !- X,Y,Z Vertex 3 {m}
+  0, 20, 6;                               !- X,Y,Z Vertex 4 {m}
+
+Lights,
+  Office Lights - Office_Floor_2,         !- Name
+  Office_Floor_2,                         !- Zone or ZoneList or Space or SpaceList Name
+  Always On,                              !- Schedule Name
+  Watts/Area,                             !- Design Level Calculation Method
+  ,                                       !- Lighting Level {W}
+  10,                                     !- Watts per Floor Area {W/m2}
+  ,                                       !- Watts per Person {W/person}
+  ,                                       !- Return Air Fraction
+  ,                                       !- Fraction Radiant
+  ,                                       !- Fraction Visible
+  1,                                      !- Fraction Replaceable
+  General;                                !- End-Use Subcategory
+
+People,
+  Office Occupancy - Office_Floor_2,      !- Name
+  Office_Floor_2,                         !- Zone or ZoneList or Space or SpaceList Name
+  Always On,                              !- Number of People Schedule Name
+  People,                                 !- Number of People Calculation Method
+  10,                                     !- Number of People
+  ,                                       !- People per Floor Area {person/m2}
+  ,                                       !- Floor Area per Person {m2/person}
+  0.3,                                    !- Fraction Radiant
+  ,                                       !- Sensible Heat Fraction
+  Office Activity Level,                  !- Activity Level Schedule Name
+  ,                                       !- Carbon Dioxide Generation Rate {m3/s-W}
+  ,                                       !- Enable ASHRAE 55 Comfort Warnings
+  ,                                       !- Mean Radiant Temperature Calculation Type
+  ,                                       !- Surface Name/Angle Factor List Name
+  ,                                       !- Work Efficiency Schedule Name
+  ClothingInsulationSchedule;             !- Clothing Insulation Calculation Method
+
+ElectricEquipment,
+  Office Equipment - Office_Floor_2,      !- Name
+  Office_Floor_2,                         !- Zone or ZoneList or Space or SpaceList Name
+  Always On,                              !- Schedule Name
+  Watts/Area,                             !- Design Level Calculation Method
+  ,                                       !- Design Level {W}
+  8,                                      !- Watts per Floor Area {W/m2}
+  ,                                       !- Watts per Person {W/person}
+  ,                                       !- Fraction Latent
+  ,                                       !- Fraction Radiant
+  ,                                       !- Fraction Lost
+  General;                                !- End-Use Subcategory
+
+ZoneHVAC:EquipmentConnections,
+  Office_Floor_2 Thermal Zone,            !- Zone Name
+  Office_Floor_2 Thermal Zone Equipment List, !- Zone Conditioning Equipment List Name
+  Office_Floor_2 Thermal Zone Inlet Node List, !- Zone Air Inlet Node or NodeList Name
+  ,                                       !- Zone Air Exhaust Node or NodeList Name
+  Node 2,                                 !- Zone Air Node Name
+  Office_Floor_2 Thermal Zone Return Node List; !- Zone Return Air Node or NodeList Name
+
+NodeList,
+  Office_Floor_2 Thermal Zone Inlet Node List, !- Name
+  Node 7;                                 !- Node Name 1
+
+NodeList,
+  Office_Floor_2 Thermal Zone Return Node List, !- Name
+  Node 9;                                 !- Node Name 1
+
+ZoneHVAC:AirDistributionUnit,
+  ADU VAV Terminal - Office_Floor_2 Thermal Zone, !- Name
+  Node 7,                                 !- Air Distribution Unit Outlet Node Name
+  AirTerminal:SingleDuct:VAV:NoReheat,    !- Air Terminal Object Type
+  VAV Terminal - Office_Floor_2 Thermal Zone; !- Air Terminal Name
+
+AirTerminal:SingleDuct:VAV:NoReheat,
+  VAV Terminal - Office_Floor_2 Thermal Zone, !- Name
+  Always On Discrete,                     !- Availability Schedule Name
+  Node 7,                                 !- Air Outlet Node Name
+  Node 10,                                !- Air Inlet Node Name
+  0.5,                                    !- Maximum Air Flow Rate {m3/s}
+  Constant,                               !- Zone Minimum Air Flow Input Method
+  0.3,                                    !- Constant Minimum Air Flow Fraction
+  Autosize;                               !- Fixed Minimum Air Flow Rate {m3/s}
+
+ZoneHVAC:EquipmentList,
+  Office_Floor_2 Thermal Zone Equipment List, !- Name
+  SequentialLoad,                         !- Load Distribution Scheme
+  ZoneHVAC:AirDistributionUnit,           !- Zone Equipment Object Type 1
+  ADU VAV Terminal - Office_Floor_2 Thermal Zone, !- Zone Equipment Name 1
+  1,                                      !- Zone Equipment Cooling Sequence 1
+  1,                                      !- Zone Equipment Heating or No-Load Sequence 1
+  ,                                       !- Zone Equipment Sequential Cooling Fraction Schedule Name 1
+  ;                                       !- Zone Equipment Sequential Heating Fraction Schedule Name 1
+
+SimulationControl,
+  No,                                     !- Do Zone Sizing Calculation
+  No,                                     !- Do System Sizing Calculation
+  No,                                     !- Do Plant Sizing Calculation
+  No,                                     !- Run Simulation for Sizing Periods
+  Yes,                                    !- Run Simulation for Weather File Run Periods
+  ,                                       !- Do HVAC Sizing Simulation for Sizing Periods
+  ;                                       !- Maximum Number of HVAC Sizing Simulation Passes
+
+RunPeriod,
+  Run Period 1,                           !- Name
+  1,                                      !- Begin Month
+  1,                                      !- Begin Day of Month
+  2023,                                   !- Begin Year
+  12,                                     !- End Month
+  31,                                     !- End Day of Month
+  2023,                                   !- End Year
+  Sunday,                                 !- Day of Week for Start Day
+  No,                                     !- Use Weather File Holidays and Special Days
+  No,                                     !- Use Weather File Daylight Saving Period
+  No,                                     !- Apply Weekend Holiday Rule
+  Yes,                                    !- Use Weather File Rain Indicators
+  Yes;                                    !- Use Weather File Snow Indicators
+
+Sizing:Parameters,
+  1.25,                                   !- Heating Sizing Factor
+  1.15;                                   !- Cooling Sizing Factor
+
+Output:Table:SummaryReports,
+  AllSummary;                             !- Report Name 1
+
+GlobalGeometryRules,
+  UpperLeftCorner,                        !- Starting Vertex Position
+  Counterclockwise,                       !- Vertex Entry Direction
+  Relative,                               !- Coordinate System
+  Relative,                               !- Daylighting Reference Point Coordinate System
+  Relative;                               !- Rectangular Surface Coordinate System
+
+Material,
+  Basic Wall Material,                    !- Name
+  MediumRough,                            !- Roughness
+  0.2,                                    !- Thickness {m}
+  1,                                      !- Conductivity {W/m-K}
+  1800,                                   !- Density {kg/m3}
+  800,                                    !- Specific Heat {J/kg-K}
+  0.9,                                    !- Thermal Absorptance
+  0.7,                                    !- Solar Absorptance
+  0.7;                                    !- Visible Absorptance
+
+Construction,
+  Basic Construction,                     !- Name
+  Basic Wall Material;                    !- Layer 1
+
+Schedule:Constant,
+  Always Off Discrete,                    !- Name
+  OnOff 1,                                !- Schedule Type Limits Name
+  0;                                      !- Hourly Value
+
+Schedule:Constant,
+  Always On Continuous,                   !- Name
+  Fractional,                             !- Schedule Type Limits Name
+  1;                                      !- Hourly Value
+
+ScheduleTypeLimits,
+  Activity Level Schedule Limits,         !- Name
+  0,                                      !- Lower Limit Value {BasedOnField A3}
+  1000,                                   !- Upper Limit Value {BasedOnField A3}
+  Continuous,                             !- Numeric Type
+  activitylevel;                          !- Unit Type
+
+ScheduleTypeLimits,
+  Fraction Schedule Limits,               !- Name
+  0,                                      !- Lower Limit Value {BasedOnField A3}
+  1,                                      !- Upper Limit Value {BasedOnField A3}
+  Continuous;                             !- Numeric Type
+
+ScheduleTypeLimits,
+  Fractional,                             !- Name
+  0,                                      !- Lower Limit Value {BasedOnField A3}
+  1,                                      !- Upper Limit Value {BasedOnField A3}
+  Continuous;                             !- Numeric Type
+
+ScheduleTypeLimits,
+  OnOff,                                  !- Name
+  0,                                      !- Lower Limit Value {BasedOnField A3}
+  1,                                      !- Upper Limit Value {BasedOnField A3}
+  Discrete,                               !- Numeric Type
+  availability;                           !- Unit Type
+
+ScheduleTypeLimits,
+  OnOff 1,                                !- Name
+  0,                                      !- Lower Limit Value {BasedOnField A3}
+  1,                                      !- Upper Limit Value {BasedOnField A3}
+  Discrete,                               !- Numeric Type
+  availability;                           !- Unit Type
+
+ScheduleTypeLimits,
+  Temperature,                            !- Name
+  ,                                       !- Lower Limit Value {BasedOnField A3}
+  ,                                       !- Upper Limit Value {BasedOnField A3}
+  Continuous,                             !- Numeric Type
+  temperature;                            !- Unit Type
+
+Schedule:Day:Interval,
+  Schedule Day 1,                         !- Name
+  Temperature,                            !- Schedule Type Limits Name
+  No,                                     !- Interpolate to Timestep
+  24:00,                                  !- Time 1 {hh:mm}
+  0;                                      !- Value Until Time 1
+
+Schedule:Week:Daily,
+  Baseline Supply Air Temperature Week Rule - Jan1-Dec31, !- Name
+  Schedule Day 1,                         !- Sunday Schedule:Day Name
+  Schedule Day 1,                         !- Monday Schedule:Day Name
+  Schedule Day 1,                         !- Tuesday Schedule:Day Name
+  Schedule Day 1,                         !- Wednesday Schedule:Day Name
+  Schedule Day 1,                         !- Thursday Schedule:Day Name
+  Schedule Day 1,                         !- Friday Schedule:Day Name
+  Schedule Day 1,                         !- Saturday Schedule:Day Name
+  Schedule Day 1,                         !- Holiday Schedule:Day Name
+  Schedule Day 1,                         !- SummerDesignDay Schedule:Day Name
+  Schedule Day 1,                         !- WinterDesignDay Schedule:Day Name
+  Schedule Day 1,                         !- CustomDay1 Schedule:Day Name
+  Schedule Day 1;                         !- CustomDay2 Schedule:Day Name
+
+Schedule:Year,
+  Baseline Supply Air Temperature,        !- Name
+  Temperature,                            !- Schedule Type Limits Name
+  Baseline Supply Air Temperature Week Rule - Jan1-Dec31, !- Schedule:Week Name 1
+  1,                                      !- Start Month 1
+  1,                                      !- Start Day 1
+  12,                                     !- End Month 1
+  31;                                     !- End Day 1
+
+OutdoorAir:Node,
+  Model Outdoor Air Node;                 !- Name
+
+AirLoopHVAC,
+  Baseline Constant Volume AHU,           !- Name
+  ,                                       !- Controller List Name
+  Baseline Constant Volume AHUAvailability Manager List, !- Availability Manager List Name
+  1,                                      !- Design Supply Air Flow Rate {m3/s}
+  Baseline Constant Volume AHU Supply Branches, !- Branch List Name
+  ,                                       !- Connector List Name
+  Node 3,                                 !- Supply Side Inlet Node Name
+  Node 6,                                 !- Demand Side Outlet Node Name
+  Baseline Constant Volume AHU Demand Inlet Nodes, !- Demand Side Inlet Node Names
+  Baseline Constant Volume AHU Supply Outlet Nodes, !- Supply Side Outlet Node Names
+  1;                                      !- Design Return Air Flow Fraction of Supply Air Flow
+
+NodeList,
+  Baseline Constant Volume AHU Supply Outlet Nodes, !- Name
+  Node 4;                                 !- Node Name 1
+
+NodeList,
+  Baseline Constant Volume AHU Demand Inlet Nodes, !- Name
+  Node 5;                                 !- Node Name 1
+
+Sizing:System,
+  Baseline Constant Volume AHU,           !- AirLoop Name
+  Sensible,                               !- Type of Load to Size On
+  Autosize,                               !- Design Outdoor Air Flow Rate {m3/s}
+  0.3,                                    !- Central Heating Maximum System Air Flow Ratio
+  7,                                      !- Preheat Design Temperature {C}
+  0.008,                                  !- Preheat Design Humidity Ratio {kgWater/kgDryAir}
+  12.8,                                   !- Precool Design Temperature {C}
+  0.008,                                  !- Precool Design Humidity Ratio {kgWater/kgDryAir}
+  12.8,                                   !- Central Cooling Design Supply Air Temperature {C}
+  16.7,                                   !- Central Heating Design Supply Air Temperature {C}
+  NonCoincident,                          !- Type of Zone Sum to Use
+  Yes,                                    !- 100% Outdoor Air in Cooling
+  Yes,                                    !- 100% Outdoor Air in Heating
+  0.0085,                                 !- Central Cooling Design Supply Air Humidity Ratio {kgWater/kgDryAir}
+  0.008,                                  !- Central Heating Design Supply Air Humidity Ratio {kgWater/kgDryAir}
+  DesignDay,                              !- Cooling Supply Air Flow Rate Method
+  1,                                      !- Cooling Supply Air Flow Rate {m3/s}
+  0.0099676501,                           !- Cooling Supply Air Flow Rate Per Floor Area {m3/s-m2}
+  1,                                      !- Cooling Fraction of Autosized Cooling Supply Air Flow Rate
+  3.9475456e-05,                          !- Cooling Supply Air Flow Rate Per Unit Cooling Capacity {m3/s-W}
+  DesignDay,                              !- Heating Supply Air Flow Rate Method
+  1,                                      !- Heating Supply Air Flow Rate {m3/s}
+  0.0099676501,                           !- Heating Supply Air Flow Rate Per Floor Area {m3/s-m2}
+  1,                                      !- Heating Fraction of Autosized Heating Supply Air Flow Rate
+  1,                                      !- Heating Fraction of Autosized Cooling Supply Air Flow Rate
+  3.1588213e-05,                          !- Heating Supply Air Flow Rate Per Unit Heating Capacity {m3/s-W}
+  ZoneSum,                                !- System Outdoor Air Method
+  1,                                      !- Zone Maximum Outdoor Air Fraction {dimensionless}
+  CoolingDesignCapacity,                  !- Cooling Design Capacity Method
+  14000,                                  !- Cooling Design Capacity {W}
+  234.7,                                  !- Cooling Design Capacity Per Floor Area {W/m2}
+  1,                                      !- Fraction of Autosized Cooling Design Capacity
+  HeatingDesignCapacity,                  !- Heating Design Capacity Method
+  0,                                      !- Heating Design Capacity {W}
+  157,                                    !- Heating Design Capacity Per Floor Area {W/m2}
+  1,                                      !- Fraction of Autosized Heating Design Capacity
+  OnOff,                                  !- Central Cooling Capacity Control Method
+  Autosize,                               !- Occupant Diversity
+  None,                                   !- Heating Coil Sizing Method
+  1;                                      !- Maximum Heating Capacity To Cooling Capacity Sizing Ratio {W/W}
+
+AvailabilityManagerAssignmentList,
+  Baseline Constant Volume AHUAvailability Manager List, !- Name
+  AvailabilityManager:Scheduled,          !- Availability Manager Object Type 1
+  Baseline Constant Volume AHU Availability Manager; !- Availability Manager Name 1
+
+AvailabilityManager:Scheduled,
+  Baseline Constant Volume AHU Availability Manager, !- Name
+  Always On Discrete;                     !- Schedule Name
+
+BranchList,
+  Baseline Constant Volume AHU Supply Branches, !- Name
+  Baseline Constant Volume AHU Main Branch; !- Branch Name 1
+
+Branch,
+  Baseline Constant Volume AHU Main Branch, !- Name
+  ,                                       !- Pressure Drop Curve Name
+  CoilSystem:Cooling:DX,                  !- Component Object Type 1
+  Baseline DX Cooling Coil CoilSystem,    !- Component Name 1
+  Node 3,                                 !- Component Inlet Node Name 1
+  Node 8,                                 !- Component Outlet Node Name 1
+  Fan:ConstantVolume,                     !- Component Object Type 2
+  Baseline Constant Speed Supply Fan,     !- Component Name 2
+  Node 8,                                 !- Component Inlet Node Name 2
+  Node 4;                                 !- Component Outlet Node Name 2
+
+CoilSystem:Cooling:DX,
+  Baseline DX Cooling Coil CoilSystem,    !- Name
+  Always On Discrete,                     !- Availability Schedule Name
+  Node 3,                                 !- DX Cooling Coil System Inlet Node Name
+  Node 8,                                 !- DX Cooling Coil System Outlet Node Name
+  Node 8,                                 !- DX Cooling Coil System Sensor Node Name
+  Coil:Cooling:DX:SingleSpeed,            !- Cooling Coil Object Type
+  Baseline DX Cooling Coil;               !- Cooling Coil Name
+
+Curve:Biquadratic,
+  Curve Biquadratic 1,                    !- Name
+  0.942587793,                            !- Coefficient1 Constant
+  0.009543347,                            !- Coefficient2 x
+  0.00068377,                             !- Coefficient3 x**2
+  -0.011042676,                           !- Coefficient4 y
+  5.249e-06,                              !- Coefficient5 y**2
+  -9.72e-06,                              !- Coefficient6 x*y
+  17,                                     !- Minimum Value of x {BasedOnField A2}
+  22,                                     !- Maximum Value of x {BasedOnField A2}
+  13,                                     !- Minimum Value of y {BasedOnField A3}
+  46;                                     !- Maximum Value of y {BasedOnField A3}
+
+Curve:Quadratic,
+  Curve Quadratic 1,                      !- Name
+  0.8,                                    !- Coefficient1 Constant
+  0.2,                                    !- Coefficient2 x
+  0,                                      !- Coefficient3 x**2
+  0.5,                                    !- Minimum Value of x {BasedOnField A2}
+  1.5;                                    !- Maximum Value of x {BasedOnField A2}
+
+Curve:Biquadratic,
+  Curve Biquadratic 2,                    !- Name
+  0.342414409,                            !- Coefficient1 Constant
+  0.034885008,                            !- Coefficient2 x
+  -0.0006237,                             !- Coefficient3 x**2
+  0.004977216,                            !- Coefficient4 y
+  0.000437951,                            !- Coefficient5 y**2
+  -0.000728028,                           !- Coefficient6 x*y
+  17,                                     !- Minimum Value of x {BasedOnField A2}
+  22,                                     !- Maximum Value of x {BasedOnField A2}
+  13,                                     !- Minimum Value of y {BasedOnField A3}
+  46;                                     !- Maximum Value of y {BasedOnField A3}
+
+Curve:Quadratic,
+  Curve Quadratic 2,                      !- Name
+  1.1552,                                 !- Coefficient1 Constant
+  -0.1808,                                !- Coefficient2 x
+  0.0256,                                 !- Coefficient3 x**2
+  0.5,                                    !- Minimum Value of x {BasedOnField A2}
+  1.5;                                    !- Maximum Value of x {BasedOnField A2}
+
+Curve:Quadratic,
+  Curve Quadratic 3,                      !- Name
+  0.85,                                   !- Coefficient1 Constant
+  0.15,                                   !- Coefficient2 x
+  0,                                      !- Coefficient3 x**2
+  0,                                      !- Minimum Value of x {BasedOnField A2}
+  1;                                      !- Maximum Value of x {BasedOnField A2}
+
+SetpointManager:MixedAir,
+  Node 8 OS Default SPM,                  !- Name
+  Temperature,                            !- Control Variable
+  Node 4,                                 !- Reference Setpoint Node Name
+  Node 8,                                 !- Fan Inlet Node Name
+  Node 4,                                 !- Fan Outlet Node Name
+  Node 8;                                 !- Setpoint Node or NodeList Name
+
+Coil:Cooling:DX:SingleSpeed,
+  Baseline DX Cooling Coil,               !- Name
+  Always On Discrete,                     !- Availability Schedule Name
+  14000,                                  !- Gross Rated Total Cooling Capacity {W}
+  0.75,                                   !- Gross Rated Sensible Heat Ratio
+  3,                                      !- Gross Rated Cooling COP {W/W}
+  1,                                      !- Rated Air Flow Rate {m3/s}
+  773.3,                                  !- Rated Evaporator Fan Power Per Volume Flow Rate 2017 {W/(m3/s)}
+  934.4,                                  !- Rated Evaporator Fan Power Per Volume Flow Rate 2023 {W/(m3/s)}
+  Node 3,                                 !- Air Inlet Node Name
+  Node 8,                                 !- Air Outlet Node Name
+  Curve Biquadratic 1,                    !- Total Cooling Capacity Function of Temperature Curve Name
+  Curve Quadratic 1,                      !- Total Cooling Capacity Function of Flow Fraction Curve Name
+  Curve Biquadratic 2,                    !- Energy Input Ratio Function of Temperature Curve Name
+  Curve Quadratic 2,                      !- Energy Input Ratio Function of Flow Fraction Curve Name
+  Curve Quadratic 3,                      !- Part Load Fraction Correlation Curve Name
+  -25,                                    !- Minimum Outdoor Dry-Bulb Temperature for Compressor Operation {C}
+  0,                                      !- Nominal Time for Condensate Removal to Begin {s}
+  0,                                      !- Ratio of Initial Moisture Evaporation Rate and Steady State Latent Capacity {dimensionless}
+  0,                                      !- Maximum Cycling Rate {cycles/hr}
+  0,                                      !- Latent Capacity Time Constant {s}
+  ,                                       !- Condenser Air Inlet Node Name
+  AirCooled,                              !- Condenser Type
+  0.9,                                    !- Evaporative Condenser Effectiveness {dimensionless}
+  Autosize,                               !- Evaporative Condenser Air Flow Rate {m3/s}
+  Autosize,                               !- Evaporative Condenser Pump Rated Power Consumption {W}
+  0,                                      !- Crankcase Heater Capacity {W}
+  ,                                       !- Crankcase Heater Capacity Function of Temperature Curve Name
+  10,                                     !- Maximum Outdoor Dry-Bulb Temperature for Crankcase Heater Operation {C}
+  ,                                       !- Supply Water Storage Tank Name
+  ,                                       !- Condensate Collection Water Storage Tank Name
+  0,                                      !- Basin Heater Capacity {W/K}
+  2;                                      !- Basin Heater Setpoint Temperature {C}
+
+Fan:ConstantVolume,
+  Baseline Constant Speed Supply Fan,     !- Name
+  Always On Discrete,                     !- Availability Schedule Name
+  0.7,                                    !- Fan Total Efficiency
+  500,                                    !- Pressure Rise {Pa}
+  1,                                      !- Maximum Flow Rate {m3/s}
+  0.9,                                    !- Motor Efficiency
+  1,                                      !- Motor In Airstream Fraction
+  Node 8,                                 !- Air Inlet Node Name
+  Node 4,                                 !- Air Outlet Node Name
+  ;                                       !- End-Use Subcategory
+
+SetpointManager:Scheduled,
+  Baseline Supply Air Setpoint Manager,   !- Name
+  Temperature,                            !- Control Variable
+  Baseline Supply Air Temperature,        !- Schedule Name
+  Node 4;                                 !- Setpoint Node or NodeList Name
+
+AirLoopHVAC:SupplyPath,
+  Baseline Constant Volume AHU Node 5 Supply Path, !- Name
+  Node 5,                                 !- Supply Air Path Inlet Node Name
+  AirLoopHVAC:ZoneSplitter,               !- Component Object Type 1
+  Air Loop HVAC Zone Splitter 1;          !- Component Name 1
+
+AirLoopHVAC:ZoneSplitter,
+  Air Loop HVAC Zone Splitter 1,          !- Name
+  Node 5,                                 !- Inlet Node Name
+  Node 10,                                !- Outlet Node Name 1
+  Node 13;                                !- Outlet Node Name 2
+
+AirLoopHVAC:ReturnPath,
+  Baseline Constant Volume AHU Return Path, !- Name
+  Node 6,                                 !- Return Air Path Outlet Node Name
+  AirLoopHVAC:ZoneMixer,                  !- Component Object Type 1
+  Air Loop HVAC Zone Mixer 1;             !- Component Name 1
+
+AirLoopHVAC:ZoneMixer,
+  Air Loop HVAC Zone Mixer 1,             !- Name
+  Node 6,                                 !- Outlet Node Name
+  Node 9,                                 !- Inlet Node Name 1
+  Node 12;                                !- Inlet Node Name 2
+
+OutputControl:Table:Style,
+  HTML;                                   !- Column Separator
+
+Output:VariableDictionary,
+  IDF,                                    !- Key Field
+  Unsorted;                               !- Sort Option
+
+Output:SQLite,
+  SimpleAndTabular;                       !- Option Type
+
+LifeCycleCost:NonrecurringCost,
+  Default Cost,                           !- Name
+  Construction,                           !- Category
+  0,                                      !- Cost
+  ServicePeriod;                          !- Start of Costs
+

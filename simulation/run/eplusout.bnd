@@ -1,0 +1,197 @@
+Program Version,EnergyPlus, Version 25.2.0-cf7368216c, YMD=2026.09.14 21:43
+! This file shows details about the branches, nodes, and other
+! elements of the flow connections.
+! This file is intended for use in "debugging" potential problems
+! that may also be detected by the program, but may be more easily
+! identified by "eye".
+! This file is also intended to support software which draws a
+! schematic diagram of the HVAC system.
+! ===============================================================
+! #Nodes,<Number of Unique Nodes>
+ #Nodes,14
+! <Node>,<NodeNumber>,<Node Name>,<Node Fluid Type>,<# Times Node Referenced After Definition>
+ Node,1,NODE 11,Air,3
+ Node,2,NODE 12,Air,2
+ Node,3,NODE 7,Air,3
+ Node,4,NODE 9,Air,2
+ Node,5,NODE 4,Air,6
+ Node,6,NODE 5,Air,3
+ Node,7,NODE 3,Air,3
+ Node,8,NODE 8,Air,7
+ Node,9,NODE 1,Air,0
+ Node,10,NODE 2,Air,0
+ Node,11,NODE 6,Air,2
+ Node,12,MODEL OUTDOOR AIR NODE,Air,0
+ Node,13,NODE 10,Air,1
+ Node,14,NODE 13,Air,1
+! ===============================================================
+! Suspicious nodes have 0 references.  It is normal for some nodes, however.
+! Listing nodes with 0 references (culled from previous list):
+! <Suspicious Node>,<NodeNumber>,<Node Name>,<Node Fluid Type>,<# Times Node Referenced After Definition>
+ Suspicious Node,9,NODE 1,Air,0
+ Suspicious Node,10,NODE 2,Air,0
+ Suspicious Node,12,MODEL OUTDOOR AIR NODE,Air,0
+! ===============================================================
+! <#Branch Lists>,<Number of Branch Lists>
+ #Branch Lists,1
+! <Branch List>,<Branch List Count>,<Branch List Name>,<Loop Name>,<Loop Type>,<Number of Branches>
+! <Branch>,<Branch Count>,<Branch Name>,<Loop Name>,<Loop Type>,<Branch Inlet Node Name>,<Branch Outlet Node Name>
+ Branch List,1,BASELINE CONSTANT VOLUME AHU SUPPLY BRANCHES,BASELINE CONSTANT VOLUME AHU,Air,1
+   Branch,1,BASELINE CONSTANT VOLUME AHU MAIN BRANCH,BASELINE CONSTANT VOLUME AHU,Air,NODE 3,NODE 4
+! ===============================================================
+! <#Supply Air Paths>,<Number of Supply Air Paths>
+ #Supply Air Paths,1
+! <Supply Air Path>,<Supply Air Path Count>,<Supply Air Path Name>,<AirLoopHVAC Name>
+! <#Components on Supply Air Path>,<Number of Components>
+! <Supply Air Path Component>,<Component Count>,<Component Type>,<Component Name>,<AirLoopHVAC Name>
+! <#Outlet Nodes on Supply Air Path Component>,<Number of Nodes>
+! <Supply Air Path Component Nodes>,<Node Count>,<Component Type>,<Component Name>,<Inlet Node Name>,<Outlet Node Name>,<AirLoopHVAC Name>
+ Supply Air Path,1,BASELINE CONSTANT VOLUME AHU NODE 5 SUPPLY PATH,BASELINE CONSTANT VOLUME AHU
+   #Components on Supply Air Path,1
+   Supply Air Path Component,1,AIRLOOPHVAC:ZONESPLITTER,AIR LOOP HVAC ZONE SPLITTER 1,BASELINE CONSTANT VOLUME AHU
+     #Outlet Nodes on Supply Air Path Component,2
+     Supply Air Path Component Nodes,1,AIRLOOPHVAC:ZONESPLITTER,AIR LOOP HVAC ZONE SPLITTER 1,NODE 5,NODE 10,BASELINE CONSTANT VOLUME AHU
+     Supply Air Path Component Nodes,2,AIRLOOPHVAC:ZONESPLITTER,AIR LOOP HVAC ZONE SPLITTER 1,NODE 5,NODE 13,BASELINE CONSTANT VOLUME AHU
+! <#Nodes on Supply Air Path>,<Number of Nodes>
+! <Supply Air Path Node>,<Node Type>,<Node Count>,<Node Name>,<AirLoopHVAC Name>
+#Nodes on Supply Air Path,3
+   Supply Air Path Node,Inlet Node,1,NODE 5,BASELINE CONSTANT VOLUME AHU
+   Supply Air Path Node,Outlet Node,2,NODE 10,BASELINE CONSTANT VOLUME AHU
+   Supply Air Path Node,Outlet Node,3,NODE 13,BASELINE CONSTANT VOLUME AHU
+! ===============================================================
+! <#Return Air Paths>,<Number of Return Air Paths>
+ #Return Air Paths,1
+! <Return Air Path>,<Return Air Path Count>,<Return Air Path Name>,<AirLoopHVAC Name>
+! <#Components on Return Air Path>,<Number of Components>
+! <Return Air Path Component>,<Component Count>,<Component Type>,<Component Name>,<AirLoopHVAC Name>
+! <#Inlet Nodes on Return Air Path Component>,<Number of Nodes>
+! <Return Air Path Component Nodes>,<Node Count>,<Component Type>,<Component Name>,<Inlet Node Name>,<Outlet Node Name>,<AirLoopHVAC Name>
+ Return Air Path,1,BASELINE CONSTANT VOLUME AHU RETURN PATH,BASELINE CONSTANT VOLUME AHU
+   #Components on Return Air Path,1
+   Return Air Path Component,1,AIRLOOPHVAC:ZONEMIXER,AIR LOOP HVAC ZONE MIXER 1,BASELINE CONSTANT VOLUME AHU
+     #Inlet Nodes on Return Air Path Component,2
+     Return Air Path Component Nodes,1,AIRLOOPHVAC:ZONEMIXER,AIR LOOP HVAC ZONE MIXER 1,NODE 9,NODE 6,BASELINE CONSTANT VOLUME AHU
+     Return Air Path Component Nodes,2,AIRLOOPHVAC:ZONEMIXER,AIR LOOP HVAC ZONE MIXER 1,NODE 12,NODE 6,BASELINE CONSTANT VOLUME AHU
+! <#Nodes on Return Air Path>,<Number of Nodes>
+! <Return Air Path Node>,<Node Type>,<Node Count>,<Node Name>,<AirLoopHVAC Name>
+   #Nodes on Return Air Path,3
+   Return Air Path Node,Outlet Node,1,NODE 6,BASELINE CONSTANT VOLUME AHU
+   Return Air Path Node,Inlet Node,2,NODE 9,BASELINE CONSTANT VOLUME AHU
+   Return Air Path Node,Inlet Node,3,NODE 12,BASELINE CONSTANT VOLUME AHU
+! ===============================================================
+! #Outdoor Air Nodes,<Number of Outdoor Air Nodes>
+ #Outdoor Air Nodes,1
+! <Outdoor Air Node>,<NodeNumber>,<Node Name>
+ Outdoor Air Node,12,MODEL OUTDOOR AIR NODE
+! ===============================================================
+! <#Component Sets>,<Number of Component Sets>
+ #Component Sets,5
+! <Component Set>,<Component Set Count>,<Parent Object Type>,<Parent Object Name>,<Component Type>,<Component Name>,<Inlet Node ID>,<Outlet Node ID>,<Description>
+ Component Set,1,BRANCH,BASELINE CONSTANT VOLUME AHU MAIN BRANCH,COILSYSTEM:COOLING:DX,BASELINE DX COOLING COIL COILSYSTEM,NODE 3,NODE 8,Air Nodes
+ Component Set,2,BRANCH,BASELINE CONSTANT VOLUME AHU MAIN BRANCH,FAN:CONSTANTVOLUME,BASELINE CONSTANT SPEED SUPPLY FAN,NODE 8,NODE 4,Air Nodes
+ Component Set,3,ZONEHVAC:AIRDISTRIBUTIONUNIT,ADU VAV TERMINAL - OFFICE_FLOOR_1 THERMAL ZONE,AIRTERMINAL:SINGLEDUCT:VAV:NOREHEAT,VAV TERMINAL - OFFICE_FLOOR_1 THERMAL ZONE,NODE 13,NODE 11,Air Nodes
+ Component Set,4,ZONEHVAC:AIRDISTRIBUTIONUNIT,ADU VAV TERMINAL - OFFICE_FLOOR_2 THERMAL ZONE,AIRTERMINAL:SINGLEDUCT:VAV:NOREHEAT,VAV TERMINAL - OFFICE_FLOOR_2 THERMAL ZONE,NODE 10,NODE 7,Air Nodes
+ Component Set,5,COILSYSTEM:COOLING:DX,BASELINE DX COOLING COIL COILSYSTEM,COIL:COOLING:DX:SINGLESPEED,BASELINE DX COOLING COIL,NODE 3,NODE 8,Air Nodes
+! ===============================================================
+! <# Plant Loops>,<Number of Plant Loops>
+ #Plant Loops,0
+! <Plant Loop>,<Plant Loop Name>,<Loop Type>,<Inlet Node Name>,<Outlet Node Name>,<Branch List>,<Connector List>
+! <Plant Loop Connector>,<Connector Type>,<Connector Name>,<Loop Name>,<Loop Type>,<Number of Inlets/Outlets>
+! <Plant Loop Connector Branches>,<Connector Node Count>,<Connector Type>,<Connector Name>,<Inlet Branch>,<Outlet Branch>,<Loop Name>,<Loop Type>
+! <Plant Loop Connector Nodes>,<Connector Node Count>,<Connector Type>,<Connector Name>,<Inlet Node>,<Outlet Node>,<Loop Name>,<Loop Type>
+! <Plant Loop Supply Connection>,<Plant Loop Name>,<Supply Side Outlet Node Name>,<Demand Side Inlet Node Name>
+! <Plant Loop Return Connection>,<Plant Loop Name>,<Demand Side Outlet Node Name>,<Supply Side Inlet Node Name>
+! ===============================================================
+! <# Condenser Loops>,<Number of Condenser Loops>
+ #Condenser Loops,0
+! <Condenser Loop>,<Condenser Loop Name>,<Loop Type>,<Inlet Node Name>,<Outlet Node Name>,<Branch List>,<Connector List>
+! <Condenser Loop Connector>,<Connector Type>,<Connector Name>,<Loop Name>,<Loop Type>,<Number of Inlets/Outlets>
+! <Condenser Loop Connector Branches>,<Connector Node Count>,<Connector Type>,<Connector Name>,<Inlet Branch>,<Outlet Branch>,<Loop Name>,<Loop Type>
+! <Condenser Loop Connector Nodes>,<Connector Node Count>,<Connector Type>,<Connector Name>,<Inlet Node>,<Outlet Node>,<Loop Name>,<Loop Type>
+! <Condenser Loop Supply Connection>,<Condenser Loop Name>,<Supply Side Outlet Node Name>,<Demand Side Inlet Node Name>
+! <Condenser Loop Return Connection>,<Condenser Loop Name>,<Demand Side Outlet Node Name>,<Supply Side Inlet Node Name>
+! ===============================================================
+! <# Controlled Zones>,<Number of Controlled Zones>
+ #Controlled Zones,2
+! <Controlled Zone>,<Controlled Zone Name>,<Equip List Name>,<Control List Name>,<Zone Node Name>,<# Inlet Nodes>,<# Exhaust Nodes>,<# Return Nodes>
+! <Controlled Zone Inlet>,<Inlet Node Count>,<Controlled Zone Name>,<Supply Air Inlet Node Name>,<SD Sys:Cooling/Heating [DD:Cooling] Inlet Node Name>,<DD Sys:Heating Inlet Node Name>
+! <Controlled Zone Exhaust>,<Exhaust Node Count>,<Controlled Zone Name>,<Exhaust Air Node Name>
+ Controlled Zone,OFFICE_FLOOR_1 THERMAL ZONE,OFFICE_FLOOR_1 THERMAL ZONE EQUIPMENT LIST,,NODE 1,1,0,1
+   Controlled Zone Inlet,1,OFFICE_FLOOR_1 THERMAL ZONE,NODE 11,NODE 13,N/A
+   Controlled Zone Return,1,OFFICE_FLOOR_1 THERMAL ZONE,NODE 12
+ Controlled Zone,OFFICE_FLOOR_2 THERMAL ZONE,OFFICE_FLOOR_2 THERMAL ZONE EQUIPMENT LIST,,NODE 2,1,0,1
+   Controlled Zone Inlet,1,OFFICE_FLOOR_2 THERMAL ZONE,NODE 7,NODE 10,N/A
+   Controlled Zone Return,1,OFFICE_FLOOR_2 THERMAL ZONE,NODE 9
+! ===============================================================
+! <#Zone Equipment Lists>,<Number of Zone Equipment Lists>
+ #Zone Equipment Lists,2
+! <Zone Equipment List>,<Zone Equipment List Count>,<Zone Equipment List Name>,<Zone Name>,<Number of Components>
+! <Zone Equipment Component>,<Component Count>,<Component Type>,<Component Name>,<Zone Name>,<Heating Priority>,<Cooling Priority>
+ Zone Equipment List,1,OFFICE_FLOOR_1 THERMAL ZONE EQUIPMENT LIST,OFFICE_FLOOR_1 THERMAL ZONE,1
+   Zone Equipment Component,1,ZONEHVAC:AIRDISTRIBUTIONUNIT,ADU VAV TERMINAL - OFFICE_FLOOR_1 THERMAL ZONE,OFFICE_FLOOR_1 THERMAL ZONE,1,1
+ Zone Equipment List,2,OFFICE_FLOOR_2 THERMAL ZONE EQUIPMENT LIST,OFFICE_FLOOR_2 THERMAL ZONE,1
+   Zone Equipment Component,1,ZONEHVAC:AIRDISTRIBUTIONUNIT,ADU VAV TERMINAL - OFFICE_FLOOR_2 THERMAL ZONE,OFFICE_FLOOR_2 THERMAL ZONE,1,1
+! ===============================================================
+! <#AirLoopHVACs>,<Number of AirLoopHVACs>
+ #AirLoopHVACs,1
+! <AirLoopHVAC>,<Air Loop Name>,<# Return Nodes>,<# Supply Nodes>,<# Zones Cooled>,<# Zones Heated>,<Outdoor Air Used>
+! <AirLoop Return Connections>,<Connection Count>,<AirLoopHVAC Name>,<Zn Eqp Return Node #>,<Zn Eqp Return Node Name>,<AirLoop Return Node #>,<Air Loop Return Node Name>
+! <AirLoop Supply Connections>,<Connection Count>,<AirLoopHVAC Name>,<Zn Eqp Supply Node #>,<Zn Eqp Supply Node Name>,<AirLoop Supply Node #>,<Air Loop Supply Node Name>
+! <Cooled Zone Info>,<Cooled Zone Count>,<Cooled Zone Name>,<Cooled Zone Inlet Node #>,<Cooled Zone Inlet Node Name>,<AirLoopHVAC Name>
+! <Heated Zone Info>,<Heated Zone Count>,<Heated Zone Name>,<Heated Zone Inlet Node #>,<Heated Zone Inlet Node Name>,<AirLoopHVAC Name>
+! <Outdoor Air Connections>,<OA Inlet Node #>,<OA Return Air Inlet Node Name>,<OA Outlet Node #>,<OA Mixed Air Outlet Node Name>,<AirLoopHVAC Name>
+! <AirLoopHVAC Connector>,<Connector Type>,<Connector Name>,<Loop Name>,<Loop Type>,<Number of Inlets/Outlets>
+! <AirLoopHVAC Connector Branches>,<Connector Node Count>,<Connector Type>,<Connector Name>,<Inlet Branch>,<Outlet Branch>,<Loop Name>,<Loop Type>
+! <AirLoopHVAC Connector Nodes>,<Connector Node Count>,<Connector Type>,<Connector Name>,<Inlet Node>,<Outlet Node>,<Loop Name>,<Loop Type>
+ AirLoopHVAC,BASELINE CONSTANT VOLUME AHU,1,1,2,0,No
+   AirLoop Return Connections,1,BASELINE CONSTANT VOLUME AHU,11,NODE 6,7,NODE 3
+   AirLoop Supply Connections,1,BASELINE CONSTANT VOLUME AHU,6,NODE 5,5,NODE 4
+   Cooled Zone Info,1,OFFICE_FLOOR_2 THERMAL ZONE,3,NODE 7,BASELINE CONSTANT VOLUME AHU
+   Cooled Zone Info,2,OFFICE_FLOOR_1 THERMAL ZONE,1,NODE 11,BASELINE CONSTANT VOLUME AHU
+! ===============================================================
+! <#Parent Node Connections>,<Number of Parent Node Connections>
+ #Parent Node Connections,14
+! <Parent Node Connection>,<Node Name>,<Node ObjectType>,<Node ObjectName>,<Node ConnectionType>,<Node FluidStream>
+ Parent Node Connection,NODE 3,BRANCH,BASELINE CONSTANT VOLUME AHU MAIN BRANCH,Inlet,1
+ Parent Node Connection,NODE 8,BRANCH,BASELINE CONSTANT VOLUME AHU MAIN BRANCH,Internal,1
+ Parent Node Connection,NODE 4,BRANCH,BASELINE CONSTANT VOLUME AHU MAIN BRANCH,Outlet,1
+ Parent Node Connection,NODE 5,AIRLOOPHVAC:SUPPLYPATH,BASELINE CONSTANT VOLUME AHU NODE 5 SUPPLY PATH,Inlet,1
+ Parent Node Connection,NODE 6,AIRLOOPHVAC:RETURNPATH,BASELINE CONSTANT VOLUME AHU RETURN PATH,Outlet,1
+ Parent Node Connection,NODE 11,ZONEHVAC:AIRDISTRIBUTIONUNIT,ADU VAV TERMINAL - OFFICE_FLOOR_1 THERMAL ZONE,Outlet,1
+ Parent Node Connection,NODE 7,ZONEHVAC:AIRDISTRIBUTIONUNIT,ADU VAV TERMINAL - OFFICE_FLOOR_2 THERMAL ZONE,Outlet,1
+ Parent Node Connection,NODE 3,AIRLOOPHVAC,BASELINE CONSTANT VOLUME AHU,Inlet,1
+ Parent Node Connection,NODE 6,AIRLOOPHVAC,BASELINE CONSTANT VOLUME AHU,Outlet,1
+ Parent Node Connection,NODE 5,AIRLOOPHVAC,BASELINE CONSTANT VOLUME AHU,Inlet,1
+ Parent Node Connection,NODE 4,AIRLOOPHVAC,BASELINE CONSTANT VOLUME AHU,Outlet,1
+ Parent Node Connection,NODE 3,COILSYSTEM:COOLING:DX,BASELINE DX COOLING COIL COILSYSTEM,Inlet,1
+ Parent Node Connection,NODE 8,COILSYSTEM:COOLING:DX,BASELINE DX COOLING COIL COILSYSTEM,Outlet,1
+ Parent Node Connection,NODE 8,COILSYSTEM:COOLING:DX,BASELINE DX COOLING COIL COILSYSTEM,Sensor,1
+! ===============================================================
+! <#Non-Parent Node Connections>,<Number of Non-Parent Node Connections>
+ #Non-Parent Node Connections,25
+! <Non-Parent Node Connection>,<Node Name>,<Node ObjectType>,<Node ObjectName>,<Node ConnectionType>,<Node FluidStream>
+ Non-Parent Node Connection,NODE 1,ZONEHVAC:EQUIPMENTCONNECTIONS,OFFICE_FLOOR_1 THERMAL ZONE,ZoneNode,1
+ Non-Parent Node Connection,NODE 11,ZONEHVAC:EQUIPMENTCONNECTIONS,OFFICE_FLOOR_1 THERMAL ZONE,ZoneInlet,1
+ Non-Parent Node Connection,NODE 12,ZONEHVAC:EQUIPMENTCONNECTIONS,OFFICE_FLOOR_1 THERMAL ZONE,ZoneReturn,1
+ Non-Parent Node Connection,NODE 2,ZONEHVAC:EQUIPMENTCONNECTIONS,OFFICE_FLOOR_2 THERMAL ZONE,ZoneNode,1
+ Non-Parent Node Connection,NODE 7,ZONEHVAC:EQUIPMENTCONNECTIONS,OFFICE_FLOOR_2 THERMAL ZONE,ZoneInlet,1
+ Non-Parent Node Connection,NODE 9,ZONEHVAC:EQUIPMENTCONNECTIONS,OFFICE_FLOOR_2 THERMAL ZONE,ZoneReturn,1
+ Non-Parent Node Connection,MODEL OUTDOOR AIR NODE,OUTDOORAIR:NODE,OutdoorAir:Node,OutdoorAir,1
+ Non-Parent Node Connection,NODE 4,SETPOINTMANAGER:SCHEDULED,BASELINE SUPPLY AIR SETPOINT MANAGER,Setpoint,1
+ Non-Parent Node Connection,NODE 4,SETPOINTMANAGER:MIXEDAIR,NODE 8 OS DEFAULT SPM,Sensor,1
+ Non-Parent Node Connection,NODE 8,SETPOINTMANAGER:MIXEDAIR,NODE 8 OS DEFAULT SPM,Sensor,1
+ Non-Parent Node Connection,NODE 8,SETPOINTMANAGER:MIXEDAIR,NODE 8 OS DEFAULT SPM,Setpoint,1
+ Non-Parent Node Connection,NODE 5,AIRLOOPHVAC:ZONESPLITTER,AIR LOOP HVAC ZONE SPLITTER 1,Inlet,1
+ Non-Parent Node Connection,NODE 10,AIRLOOPHVAC:ZONESPLITTER,AIR LOOP HVAC ZONE SPLITTER 1,Outlet,1
+ Non-Parent Node Connection,NODE 13,AIRLOOPHVAC:ZONESPLITTER,AIR LOOP HVAC ZONE SPLITTER 1,Outlet,1
+ Non-Parent Node Connection,NODE 11,AIRTERMINAL:SINGLEDUCT:VAV:NOREHEAT,VAV TERMINAL - OFFICE_FLOOR_1 THERMAL ZONE,Outlet,1
+ Non-Parent Node Connection,NODE 13,AIRTERMINAL:SINGLEDUCT:VAV:NOREHEAT,VAV TERMINAL - OFFICE_FLOOR_1 THERMAL ZONE,Inlet,1
+ Non-Parent Node Connection,NODE 7,AIRTERMINAL:SINGLEDUCT:VAV:NOREHEAT,VAV TERMINAL - OFFICE_FLOOR_2 THERMAL ZONE,Outlet,1
+ Non-Parent Node Connection,NODE 10,AIRTERMINAL:SINGLEDUCT:VAV:NOREHEAT,VAV TERMINAL - OFFICE_FLOOR_2 THERMAL ZONE,Inlet,1
+ Non-Parent Node Connection,NODE 6,AIRLOOPHVAC:ZONEMIXER,AIR LOOP HVAC ZONE MIXER 1,Outlet,1
+ Non-Parent Node Connection,NODE 9,AIRLOOPHVAC:ZONEMIXER,AIR LOOP HVAC ZONE MIXER 1,Inlet,1
+ Non-Parent Node Connection,NODE 12,AIRLOOPHVAC:ZONEMIXER,AIR LOOP HVAC ZONE MIXER 1,Inlet,1
+ Non-Parent Node Connection,NODE 8,FAN:CONSTANTVOLUME,BASELINE CONSTANT SPEED SUPPLY FAN,Inlet,1
+ Non-Parent Node Connection,NODE 4,FAN:CONSTANTVOLUME,BASELINE CONSTANT SPEED SUPPLY FAN,Outlet,1
+ Non-Parent Node Connection,NODE 3,COIL:COOLING:DX:SINGLESPEED,BASELINE DX COOLING COIL,Inlet,1
+ Non-Parent Node Connection,NODE 8,COIL:COOLING:DX:SINGLESPEED,BASELINE DX COOLING COIL,Outlet,1

@@ -72,7 +72,7 @@ headers = [
     "28.0,27.5,26.5,25.5,24.5,24.0",
 
     # HOLIDAYS / DAYLIGHT SAVING
-    "HOLIDAYS/DAYLIGHT SAVING,No,0,0",
+    "HOLIDAYS/DAYLIGHT SAVINGS,No,0,0,0",
 
     # COMMENTS
     "COMMENTS 1,Generated from the Indian Metro weather dataset.",
@@ -80,7 +80,7 @@ headers = [
     
 
     # DATA PERIODS
-    "DATA PERIODS,1,1,Data,Sunday,1/1/2023,12/31/2023"
+    "DATA PERIODS,1,1,Data,Sunday,1/1,12/31"
 ]
 
 # =========================================================
