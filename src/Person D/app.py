@@ -42,6 +42,9 @@ if "page_view" not in st.session_state:
 if "user_inputs" not in st.session_state:
     st.session_state["user_inputs"] = {}
 
+if "show_individual_analysis" not in st.session_state:
+    st.session_state["show_individual_analysis"] = False
+
 # ---------------------------------------------------------------------------
 # Sidebar: Axis Weights
 # ---------------------------------------------------------------------------
@@ -538,313 +541,352 @@ elif st.session_state["page_view"] == "dashboard":
             )
 
         # -------------------------------------------------------------------
-        # Executive KPI Cards Row
+        # Expandable Individual Retrofit Analysis
         # -------------------------------------------------------------------
         st.markdown("---")
-        kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-        with kpi1:
-            st.metric(
-                "Top Recommendation",
-                f"{top_option['Retrofit Option']}",
-                f"{top_option['Recommendation']}",
+        heading_col, button_col = st.columns([4.5, 1.5])
+        with heading_col:
+            st.subheader("Individual Retrofit Analysis")
+            st.caption(
+                "Expand this section to view the top recommendation spotlight, explanations, "
+                "visual comparisons, and the complete financial feasibility analysis."
             )
-        with kpi2:
-            st.metric(
-                "Grade & Final Score",
-                f"{top_option['Grade']}",
-                f"{top_option['Final Score']:.2f} / 5.00",
+        with button_col:
+            st.write("")
+            button_label = (
+                "🔼 Collapse Analysis"
+                if st.session_state["show_individual_analysis"]
+                else "🔽 Expand Analysis"
             )
-        with kpi3:
-            st.metric(
-                "Peak Annual Savings",
-                f"₹{top_option['Annual Savings (INR)']:,.0f}",
-                f"{top_option['Savings %']:.1f}% Energy Reduction",
-            )
-        with kpi4:
-            st.metric(
-                "Fastest Payback",
-                f"{results_df['Payback (Years)'].min():.2f} yrs",
-                "Full Capex Recovery",
-            )
-        with kpi5:
-            surplus_or_short = budget - top_option["Upgrade Cost (INR)"]
-            if surplus_or_short >= 0:
-                st.metric("Budget Feasibility", "Feasible", f"Surplus: ₹{surplus_or_short:,.0f}")
-            else:
-                st.metric("Budget Feasibility", "Budget Deficit", f"Shortfall: ₹{abs(surplus_or_short):,.0f}")
+            if st.button(button_label, use_container_width=True, key="toggle_individual_analysis"):
+                st.session_state["show_individual_analysis"] = not st.session_state["show_individual_analysis"]
+                st.rerun()
 
-        # -------------------------------------------------------------------
-        # Top Recommended Spotlight Hero Card
-        # -------------------------------------------------------------------
-        st.markdown("---")
-        st.subheader("Top Recommended Retrofit Spotlight")
-
-        hero_col1, hero_col2 = st.columns([1.2, 0.8])
-        with hero_col1:
-            st.success(
-                f"### {top_option['Recommendation']} — **{top_option['Retrofit Option']}** ({top_option['Grade']})\n\n"
-                f"{top_option['Explanation']['verdict_explanation']}\n\n"
-                f"• **Technical Performance:** Energy: **{top_option['Energy']}/5** | Comfort: **{top_option['Comfort']}/5** | "
-                f"Cost-Benefit: **{top_option['Cost Benefit']}/5** | Sustainability: **{top_option['Sustainability']}/5** | "
-                f"Maintenance: **{top_option['Maintenance']}/5**\n\n"
-                f"• **Final Score:** **{top_option['Final Score']:.3f} / 5.000**"
-            )
-        with hero_col2:
-            st.info(
-                f"#### Financial & Investment Metrics\n\n"
-                f"- **Upgrade Cost Required:** **₹{top_option['Upgrade Cost (INR)']:,.0f}**\n"
-                f"- **Available Budget:** **₹{budget:,.0f}**\n"
-                f"- **Annual Utility Savings:** **₹{top_option['Annual Savings (INR)']:,.0f} / year**\n"
-                f"- **Payback Period:** **{top_option['Payback (Years)']:.2f} years**\n"
-                f"- **Budget Feasibility:** {top_option['Budget Feasibility']}"
-            )
-
-        # -------------------------------------------------------------------
-        # Visual Dashboards: Multi-Axis & Financials
-        # -------------------------------------------------------------------
-        st.markdown("---")
-        st.subheader("Multi-Option Performance & Financial Dashboards")
-        st.caption("Direct visual comparison across all 5 catalog candidates.")
-
-        chart_col1, chart_col2 = st.columns(2)
-
-        with chart_col1:
-            st.markdown("##### Multi-Axis Performance Scores (Scale 1–5)")
-            melted_scores = []
-            for _, r in results_df.iterrows():
-                for axis in ["Energy", "Comfort", "Cost Benefit", "Sustainability", "Maintenance"]:
-                    melted_scores.append({
-                        "Retrofit": r["Retrofit Option"],
-                        "Axis": axis,
-                        "Score": r[axis],
-                    })
-            scores_df = pd.DataFrame(melted_scores)
-            axis_chart = (
-                alt.Chart(scores_df)
-                .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-                .encode(
-                    x=alt.X("Axis:N", title="Evaluation Axis", sort=None),
-                    y=alt.Y("Score:Q", title="Score (1 to 5)", scale=alt.Scale(domain=[0, 5])),
-                    color=alt.Color("Retrofit:N", title="Retrofit Option", scale=alt.Scale(scheme="category10")),
-                    xOffset="Retrofit:N",
-                    tooltip=["Retrofit", "Axis", "Score"],
+        if st.session_state["show_individual_analysis"]:
+            # -------------------------------------------------------------------
+            # Executive KPI Cards Row
+            # -------------------------------------------------------------------
+            st.markdown("---")
+            kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+            with kpi1:
+                st.metric(
+                    "Top Recommendation",
+                    f"{top_option['Retrofit Option']}",
+                    f"{top_option['Recommendation']}",
                 )
-                .properties(height=320)
-            )
-            st.altair_chart(axis_chart, use_container_width=True)
-
-        with chart_col2:
-            st.markdown("##### Financial Comparison: Upgrade Cost vs. Annual Savings (INR)")
-            fin_melted = []
-            for _, r in results_df.iterrows():
-                fin_melted.append({
-                    "Retrofit": r["Retrofit Option"],
-                    "Metric": "Annual Savings (INR)",
-                    "Amount": r["Annual Savings (INR)"],
-                })
-                fin_melted.append({
-                    "Retrofit": r["Retrofit Option"],
-                    "Metric": "Upgrade Cost (INR)",
-                    "Amount": r["Upgrade Cost (INR)"],
-                })
-            fin_melted_df = pd.DataFrame(fin_melted)
-
-            fin_chart = (
-                alt.Chart(fin_melted_df)
-                .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-                .encode(
-                    x=alt.X("Retrofit:N", title="Retrofit Option", sort=None),
-                    y=alt.Y("Amount:Q", title="Amount (INR)"),
-                    color=alt.Color("Metric:N", title="Financial Metric", scale=alt.Scale(scheme="set2")),
-                    xOffset="Metric:N",
-                    tooltip=["Retrofit", "Metric", alt.Tooltip("Amount:Q", format=",.0f")],
+            with kpi2:
+                st.metric(
+                    "Grade & Final Score",
+                    f"{top_option['Grade']}",
+                    f"{top_option['Final Score']:.2f} / 5.00",
                 )
-                .properties(height=320)
-            )
-            st.altair_chart(fin_chart, use_container_width=True)
-
-        # -------------------------------------------------------------------
-        # Scoring Model Explanations (Detailed Why?)
-        # -------------------------------------------------------------------
-        st.markdown("---")
-        st.subheader("Individual Retrofit Analysis")
-        st.caption(
-            "Click an individual retrofit below to elaborate on its Energy, Comfort, Cost-Benefit, "
-            "Sustainability, Maintenance, and final-score reasoning."
-        )
-
-        for _, row in results_df.iterrows():
-            opt = row["Retrofit Option"]
-            exp = row["Explanation"]
-            grade = row["Grade"]
-            fscore = row["Final Score"]
-            tier = row["Recommendation"]
-
-            with st.expander(f"**{opt}** — Score: `{fscore:.3f}/5` | {grade} — *{tier}*", expanded=(opt == top_option["Retrofit Option"])):
-                e_tab, c_tab, cb_tab, s_tab, m_tab, f_tab = st.tabs([
-                    f"Energy ({row['Energy']}/5)",
-                    f"Comfort ({row['Comfort']}/5)",
-                    f"Cost Benefit ({row['Cost Benefit']}/5)",
-                    f"Sustainability ({row['Sustainability']}/5)",
-                    f"Maintenance ({row['Maintenance']}/5)",
-                    "Math & Formula",
-                ])
-
-                with e_tab:
-                    st.markdown(f"**Energy Rationale:**\n\n{exp['energy_explanation']}")
-                    annual_saved_kwh = row.get("Annual Energy Saved (kWh)")
-                    if annual_saved_kwh is None:
-                        annual_saved_kwh = row["Savings %"] * 0.01 * (
-                            b_features.get("eui", b_features.get("baseline_eui", 150.0))
-                            * b_features.get("gross_floor_area_m2", b_features.get("floor_area", 15000.0))
-                        )
-                    st.markdown(
-                        f"• **Predicted Energy Savings:** `{row['Savings %']:.1f}%`\n"
-                        f"• **Annual Electricity Saved:** `{round(float(annual_saved_kwh)):,.0f} kWh/year`"
-                    )
-
-                with c_tab:
-                    st.markdown(f"**Comfort Rationale:**\n\n{exp['comfort_explanation']}")
-
-                with cb_tab:
-                    st.markdown(f"**Cost Benefit Rationale:**\n\n{exp['cost_benefit_explanation']}")
-                    st.markdown(
-                        f"• **Annual Savings:** `₹{row['Annual Savings (INR)']:,.0f}`\n"
-                        f"• **Upgrade Cost Required:** `₹{row['Upgrade Cost (INR)']:,.0f}`\n"
-                        f"• **Payback Period:** `{row['Payback (Years)']:.2f} years`"
-                    )
-
-                with s_tab:
-                    st.markdown(f"**Sustainability Rationale:**\n\n{exp['sustainability_explanation']}")
-
-                with m_tab:
-                    st.markdown(f"**Maintenance Rationale:**\n\n{exp['maintenance_explanation']}")
-
-                with f_tab:
-                    st.markdown("**Weighted Final Score Arithmetic:**")
-                    st.code(exp["formula_explanation"], language="text")
-                    st.markdown(f"**Score-to-Grade Mapping:** Final Score `{fscore:.3f}` maps directly to **{grade}** ({tier}).")
-
-        # -------------------------------------------------------------------
-        # Comprehensive Recommendation & Financial Table
-        # Color mapped from Dark Green to Neutral to Dark Red (NO EMOJIS)
-        # -------------------------------------------------------------------
-        st.markdown("---")
-        st.subheader("Comprehensive Retrofit Ranking & Financial Feasibility Table")
-        st.caption(
-            "Showing **all 5 catalog options** styled from dark green (best) to neutral to dark red. "
-            "Upgrade costs are measure-level EESL benchmark estimates; exact project costs vary by equipment scope and site conditions."
-        )
-
-        display_df = results_df[[
-            "Retrofit Option",
-            "Recommendation",
-            "Grade",
-            "Final Score",
-            "Energy",
-            "Comfort",
-            "Cost Benefit",
-            "Sustainability",
-            "Maintenance",
-            "Savings %",
-            "Annual Savings (INR)",
-            "Upgrade Cost (INR)",
-            "Budget Balance (INR)",
-            "Budget Feasibility",
-            "Payback (Years)",
-        ]].copy()
-
-        # Sort: feasible items first (by Final Score desc), deficit items last (by Final Score desc)
-        display_df["_is_deficit"] = display_df["Budget Feasibility"].str.contains("Deficit", case=False, na=False).astype(int)
-        display_df = display_df.sort_values(
-            ["_is_deficit", "Final Score"], ascending=[True, False]
-        ).reset_index(drop=True)
-        display_df = display_df.drop(columns=["_is_deficit"])
-
-        # Format columns for display
-        formatted_df = display_df.copy()
-        formatted_df["Annual Savings (INR)"] = formatted_df["Annual Savings (INR)"].apply(lambda x: f"₹{x:,.0f}")
-        formatted_df["Upgrade Cost (INR)"] = formatted_df["Upgrade Cost (INR)"].apply(lambda x: f"₹{x:,.0f}")
-        formatted_df["Budget Balance (INR)"] = formatted_df["Budget Balance (INR)"].apply(lambda x: f"+₹{x:,.0f}" if x >= 0 else f"-₹{abs(x):,.0f}")
-        formatted_df["Savings %"] = formatted_df["Savings %"].apply(lambda x: f"{x:.1f}%")
-        formatted_df["Payback (Years)"] = formatted_df["Payback (Years)"].apply(lambda x: f"{x:.2f} yrs")
-        formatted_df["Final Score"] = formatted_df["Final Score"].apply(lambda x: f"{x:.3f}")
-
-        # Color-styling helpers: TEXT color only (Dark green -> neutral -> dark red)
-        def color_recommendation(val):
-            v = str(val).strip()
-            if v == "Highly Recommended":
-                return "color: #1b5e20; font-weight: bold;"
-            elif v == "Recommended":
-                return "color: #2e7d32; font-weight: bold;"
-            elif v == "Consider":
-                return "color: #f57f17; font-weight: bold;"
-            elif v == "Low Priority":
-                return "color: #e65100; font-weight: bold;"
-            elif v == "Not Recommended":
-                return "color: #b71c1c; font-weight: bold;"
-            return ""
-
-        def color_grade(val):
-            v = str(val).strip()
-            if v == "Grade A":
-                return "color: #1b5e20; font-weight: bold;"
-            elif v == "Grade B":
-                return "color: #2e7d32; font-weight: bold;"
-            elif v == "Grade C":
-                return "color: #f57f17; font-weight: bold;"
-            elif v == "Grade D":
-                return "color: #e65100; font-weight: bold;"
-            elif v == "Grade F":
-                return "color: #b71c1c; font-weight: bold;"
-            return ""
-
-        def color_score(val):
-            try:
-                s = float(val)
-                if s >= 4.0:
-                    return "color: #1b5e20; font-weight: bold;"
-                elif s >= 3.0:
-                    return "color: #2e7d32; font-weight: bold;"
-                elif s >= 2.0:
-                    return "color: #f57f17; font-weight: bold;"
-                elif s >= 1.0:
-                    return "color: #e65100; font-weight: bold;"
+            with kpi3:
+                st.metric(
+                    "Peak Annual Savings",
+                    f"₹{top_option['Annual Savings (INR)']:,.0f}",
+                    f"{top_option['Savings %']:.1f}% Energy Reduction",
+                )
+            with kpi4:
+                st.metric(
+                    "Fastest Payback",
+                    f"{results_df['Payback (Years)'].min():.2f} yrs",
+                    "Full Capex Recovery",
+                )
+            with kpi5:
+                surplus_or_short = budget - top_option["Upgrade Cost (INR)"]
+                if surplus_or_short >= 0:
+                    st.metric("Budget Feasibility", "Feasible", f"Surplus: ₹{surplus_or_short:,.0f}")
                 else:
+                    st.metric("Budget Feasibility", "Budget Deficit", f"Shortfall: ₹{abs(surplus_or_short):,.0f}")
+
+            # -------------------------------------------------------------------
+            # Top Recommended Spotlight Hero Card
+            # -------------------------------------------------------------------
+            st.markdown("---")
+            st.subheader("Top Recommended Retrofit Spotlight")
+
+            hero_col1, hero_col2 = st.columns([1.2, 0.8])
+            with hero_col1:
+                st.success(
+                    f"### {top_option['Recommendation']} — **{top_option['Retrofit Option']}** ({top_option['Grade']})\n\n"
+                    f"{top_option['Explanation']['verdict_explanation']}\n\n"
+                    f"• **Technical Performance:** Energy: **{top_option['Energy']}/5** | Comfort: **{top_option['Comfort']}/5** | "
+                    f"Cost-Benefit: **{top_option['Cost Benefit']}/5** | Sustainability: **{top_option['Sustainability']}/5** | "
+                    f"Maintenance: **{top_option['Maintenance']}/5**\n\n"
+                    f"• **Final Score:** **{top_option['Final Score']:.3f} / 5.000**"
+                )
+            with hero_col2:
+                st.info(
+                    f"#### Financial & Investment Metrics\n\n"
+                    f"- **Upgrade Cost Required:** **₹{top_option['Upgrade Cost (INR)']:,.0f}**\n"
+                    f"- **Available Budget:** **₹{budget:,.0f}**\n"
+                    f"- **Annual Utility Savings:** **₹{top_option['Annual Savings (INR)']:,.0f} / year**\n"
+                    f"- **Payback Period:** **{top_option['Payback (Years)']:.2f} years**\n"
+                    f"- **Budget Feasibility:** {top_option['Budget Feasibility']}"
+                )
+
+            # -------------------------------------------------------------------
+            # Visual Dashboards: Multi-Axis & Financials
+            # -------------------------------------------------------------------
+            st.markdown("---")
+            st.subheader("Multi-Option Performance & Financial Dashboards")
+            st.caption("Direct visual comparison across all 5 catalog candidates.")
+
+            chart_col1, chart_col2 = st.columns(2)
+
+            with chart_col1:
+                st.markdown("##### Multi-Axis Performance Scores (Scale 1–5)")
+                melted_scores = []
+                for _, r in results_df.iterrows():
+                    for axis in ["Energy", "Comfort", "Cost Benefit", "Sustainability", "Maintenance"]:
+                        melted_scores.append({
+                            "Retrofit": r["Retrofit Option"],
+                            "Axis": axis,
+                            "Score": r[axis],
+                        })
+                scores_df = pd.DataFrame(melted_scores)
+                axis_chart = (
+                    alt.Chart(scores_df)
+                    .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+                    .encode(
+                        x=alt.X("Axis:N", title="Evaluation Axis", sort=None),
+                        y=alt.Y("Score:Q", title="Score (1 to 5)", scale=alt.Scale(domain=[0, 5])),
+                        color=alt.Color("Retrofit:N", title="Retrofit Option", scale=alt.Scale(scheme="category10")),
+                        xOffset="Retrofit:N",
+                        tooltip=["Retrofit", "Axis", "Score"],
+                    )
+                    .properties(height=320)
+                )
+                st.altair_chart(axis_chart, use_container_width=True)
+
+            with chart_col2:
+                st.markdown("##### Financial Comparison: Upgrade Cost vs. Annual Savings (INR)")
+                fin_melted = []
+                for _, r in results_df.iterrows():
+                    fin_melted.append({
+                        "Retrofit": r["Retrofit Option"],
+                        "Metric": "Annual Savings (INR)",
+                        "Amount": r["Annual Savings (INR)"],
+                    })
+                    fin_melted.append({
+                        "Retrofit": r["Retrofit Option"],
+                        "Metric": "Upgrade Cost (INR)",
+                        "Amount": r["Upgrade Cost (INR)"],
+                    })
+                fin_melted_df = pd.DataFrame(fin_melted)
+
+                fin_chart = (
+                    alt.Chart(fin_melted_df)
+                    .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+                    .encode(
+                        x=alt.X("Retrofit:N", title="Retrofit Option", sort=None),
+                        y=alt.Y("Amount:Q", title="Amount (INR)"),
+                        color=alt.Color("Metric:N", title="Financial Metric", scale=alt.Scale(scheme="set2")),
+                        xOffset="Metric:N",
+                        tooltip=["Retrofit", "Metric", alt.Tooltip("Amount:Q", format=",.0f")],
+                    )
+                    .properties(height=320)
+                )
+                st.altair_chart(fin_chart, use_container_width=True)
+
+            # Build the same styled ranking table used by the dashboard, while
+            # keeping the underlying results_df untouched for all core logic.
+            display_df = results_df[[
+                "Retrofit Option",
+                "Recommendation",
+                "Grade",
+                "Final Score",
+                "Energy",
+                "Comfort",
+                "Cost Benefit",
+                "Sustainability",
+                "Maintenance",
+                "Savings %",
+                "Annual Savings (INR)",
+                "Upgrade Cost (INR)",
+                "Budget Balance (INR)",
+                "Budget Feasibility",
+                "Payback (Years)",
+            ]].copy()
+
+            # Keep the same ordering convention: feasible options first, then
+            # budget-deficit options, with higher final score first.
+            display_df["_is_deficit"] = display_df["Budget Feasibility"].str.contains(
+                "Deficit", case=False, na=False
+            ).astype(int)
+            display_df = display_df.sort_values(
+                ["_is_deficit", "Final Score"], ascending=[True, False]
+            ).reset_index(drop=True)
+            display_df = display_df.drop(columns=["_is_deficit"])
+
+            formatted_df = display_df.copy()
+            formatted_df["Annual Savings (INR)"] = formatted_df["Annual Savings (INR)"].apply(lambda x: f"₹{x:,.0f}")
+            formatted_df["Upgrade Cost (INR)"] = formatted_df["Upgrade Cost (INR)"].apply(lambda x: f"₹{x:,.0f}")
+            formatted_df["Budget Balance (INR)"] = formatted_df["Budget Balance (INR)"].apply(
+                lambda x: f"+₹{x:,.0f}" if x >= 0 else f"-₹{abs(x):,.0f}"
+            )
+            formatted_df["Savings %"] = formatted_df["Savings %"].apply(lambda x: f"{x:.1f}%")
+            formatted_df["Payback (Years)"] = formatted_df["Payback (Years)"].apply(lambda x: f"{x:.2f} yrs")
+            formatted_df["Final Score"] = formatted_df["Final Score"].apply(lambda x: f"{x:.3f}")
+
+            def color_recommendation(val):
+                v = str(val).strip()
+                if v == "Highly Recommended":
+                    return "color: #1b5e20; font-weight: bold;"
+                if v == "Recommended":
+                    return "color: #2e7d32; font-weight: bold;"
+                if v == "Consider":
+                    return "color: #f57f17; font-weight: bold;"
+                if v == "Low Priority":
+                    return "color: #e65100; font-weight: bold;"
+                if v == "Not Recommended":
                     return "color: #b71c1c; font-weight: bold;"
-            except (ValueError, TypeError):
                 return ""
 
-        def color_feasibility(val):
-            v = str(val)
-            if "Feasible" in v or "High ROI" in v:
-                return "color: #1b5e20; font-weight: bold;"
-            elif "Deficit" in v or "Shortfall" in v:
-                return "color: #b71c1c; font-weight: bold;"
-            return ""
+            def color_grade(val):
+                v = str(val).strip()
+                if v == "Grade A":
+                    return "color: #1b5e20; font-weight: bold;"
+                if v == "Grade B":
+                    return "color: #2e7d32; font-weight: bold;"
+                if v == "Grade C":
+                    return "color: #f57f17; font-weight: bold;"
+                if v == "Grade D":
+                    return "color: #e65100; font-weight: bold;"
+                if v == "Grade F":
+                    return "color: #b71c1c; font-weight: bold;"
+                return ""
 
-        styled_df = (
-            formatted_df.style
-            .map(color_recommendation, subset=["Recommendation"])
-            .map(color_grade, subset=["Grade"])
-            .map(color_score, subset=["Final Score", "Energy", "Comfort", "Cost Benefit", "Sustainability", "Maintenance"])
-            .map(color_feasibility, subset=["Budget Feasibility"])
-        )
+            def color_score(val):
+                try:
+                    score = float(val)
+                    if score >= 4.0:
+                        return "color: #1b5e20; font-weight: bold;"
+                    if score >= 3.0:
+                        return "color: #2e7d32; font-weight: bold;"
+                    if score >= 2.0:
+                        return "color: #f57f17; font-weight: bold;"
+                    if score >= 1.0:
+                        return "color: #e65100; font-weight: bold;"
+                    return "color: #b71c1c; font-weight: bold;"
+                except (ValueError, TypeError):
+                    return ""
 
-        st.dataframe(
-            styled_df,
-            use_container_width=True,
-            hide_index=True,
-        )
+            def color_feasibility(val):
+                v = str(val)
+                if "Feasible" in v or "High ROI" in v:
+                    return "color: #1b5e20; font-weight: bold;"
+                if "Deficit" in v or "Shortfall" in v:
+                    return "color: #b71c1c; font-weight: bold;"
+                return ""
 
-        # Download CSV report
-        csv_data = display_df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="📥 Download Full Recommendations Report (CSV)",
-            data=csv_data,
-            file_name="Retrofit_Recommendations_Report.csv",
-            mime="text/csv",
-        )
+            styled_df = (
+                formatted_df.style
+                .map(color_recommendation, subset=["Recommendation"])
+                .map(color_grade, subset=["Grade"])
+                .map(
+                    color_score,
+                    subset=["Final Score", "Energy", "Comfort", "Cost Benefit", "Sustainability", "Maintenance"],
+                )
+                .map(color_feasibility, subset=["Budget Feasibility"])
+            )
+
+            # Clickable individual retrofit table with detail shown below.
+            st.markdown("**Individual retrofit options — click a row to view its analysis:**")
+            individual_event = st.dataframe(
+                styled_df,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="individual_retrofit_table",
+            )
+            selected_rows = individual_event.selection.rows if hasattr(individual_event, "selection") else []
+            selected_display_idx = int(selected_rows[0]) if selected_rows else 0
+            selected_option = display_df.iloc[selected_display_idx]["Retrofit Option"]
+            selected_row = results_df[results_df["Retrofit Option"] == selected_option].iloc[0]
+
+            # -------------------------------------------------------------------
+            # Selected Retrofit Analysis — appears directly below the table
+            # -------------------------------------------------------------------
+            st.markdown("### Selected Retrofit Analysis")
+            st.caption("Select another row above to update the analysis and score explanation.")
+
+            opt = selected_row["Retrofit Option"]
+            exp = selected_row["Explanation"]
+            grade = selected_row["Grade"]
+            fscore = selected_row["Final Score"]
+            tier = selected_row["Recommendation"]
+
+            d1, d2, d3, d4 = st.columns(4)
+            with d1:
+                st.metric("Final Score", f"{fscore:.3f} / 5")
+            with d2:
+                st.metric("Grade", grade, tier)
+            with d3:
+                st.metric("Annual Savings", f"₹{selected_row['Annual Savings (INR)']:,.0f}")
+            with d4:
+                st.metric("Payback", f"{selected_row['Payback (Years)']:.2f} yrs")
+
+            st.info(
+                f"### {opt} — {tier}\n\n"
+                f"{exp['verdict_explanation']}"
+            )
+
+            e_tab, c_tab, cb_tab, s_tab, m_tab, f_tab = st.tabs([
+                f"Energy ({selected_row['Energy']}/5)",
+                f"Comfort ({selected_row['Comfort']}/5)",
+                f"Cost Benefit ({selected_row['Cost Benefit']}/5)",
+                f"Sustainability ({selected_row['Sustainability']}/5)",
+                f"Maintenance ({selected_row['Maintenance']}/5)",
+                "Math & Formula",
+            ])
+
+            with e_tab:
+                st.markdown(f"**Energy Rationale:**\n\n{exp['energy_explanation']}")
+                annual_saved_kwh = selected_row.get("Annual Energy Saved (kWh)")
+                if annual_saved_kwh is None:
+                    annual_saved_kwh = selected_row["Savings %"] * 0.01 * (
+                        b_features.get("eui", b_features.get("baseline_eui", 150.0))
+                        * b_features.get("gross_floor_area_m2", b_features.get("floor_area", 15000.0))
+                    )
+                st.markdown(
+                    f"• **Predicted Energy Savings:** `{selected_row['Savings %']:.1f}%`\n"
+                    f"• **Annual Electricity Saved:** `{round(float(annual_saved_kwh)):,.0f} kWh/year`"
+                )
+
+            with c_tab:
+                st.markdown(f"**Comfort Rationale:**\n\n{exp['comfort_explanation']}")
+
+            with cb_tab:
+                st.markdown(f"**Cost Benefit Rationale:**\n\n{exp['cost_benefit_explanation']}")
+                st.markdown(
+                    f"• **Annual Savings:** `₹{selected_row['Annual Savings (INR)']:,.0f}`\n"
+                    f"• **Upgrade Cost Required:** `₹{selected_row['Upgrade Cost (INR)']:,.0f}`\n"
+                    f"• **Payback Period:** `{selected_row['Payback (Years)']:.2f} years`"
+                )
+
+            with s_tab:
+                st.markdown(f"**Sustainability Rationale:**\n\n{exp['sustainability_explanation']}")
+
+            with m_tab:
+                st.markdown(f"**Maintenance Rationale:**\n\n{exp['maintenance_explanation']}")
+
+            with f_tab:
+                st.markdown("**Weighted Final Score Arithmetic:**")
+                st.code(exp["formula_explanation"], language="text")
+                st.markdown(
+                    f"**Score-to-Grade Mapping:** Final Score `{fscore:.3f}` maps directly to **{grade}** ({tier})."
+                )
+
+            # Download CSV report
+            csv_data = display_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Download Full Recommendations Report (CSV)",
+                data=csv_data,
+                file_name="Retrofit_Recommendations_Report.csv",
+                mime="text/csv",
+            )
 
         # -------------------------------------------------------------------
         # Navigation Options: Edit Inputs vs Configure Another Building
