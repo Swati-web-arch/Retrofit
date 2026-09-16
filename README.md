@@ -1,26 +1,33 @@
+
 # ⚡ RETROFITIQ
 
-## HVAC Retrofit Recommendation & Simulation Engine
+## HVAC Retrofit Recommendation & Decision-Support Engine
 
 > **From HVAC data to intelligent retrofit decisions.**
 
-RetrofitIQ is a data-driven decision-support system that analyzes building and HVAC performance, predicts energy consumption, evaluates retrofit strategies, and recommends the most suitable intervention based on **energy, cost, CO₂, comfort, feasibility, maintenance, and urgency**.
+RetrofitIQ is a data-driven HVAC retrofit decision-support system that analyzes building characteristics, HVAC systems, energy performance, operational conditions, comfort, sustainability, maintenance, and financial feasibility to determine **which retrofit package is the most suitable for a building — and why.**
+
+Unlike tools that only estimate energy savings, RetrofitIQ evaluates complete retrofit packages using a combination of:
+
+**Energy • Comfort • Cost-Benefit • Sustainability • Maintenance • Diagnostics • Budget Feasibility**
 
 **🏆 Round 2 | 🚧 Development in Progress | VIT Chennai**
 
-----
+---
 
 # 🎯 What Are We Building?
 
-RetrofitIQ answers one simple question:
+RetrofitIQ answers one central question:
 
-> **Which HVAC retrofit should this building implement first — and why?**
+> **Which HVAC retrofit package is the best decision for this building — and why?**
 
-Instead of giving a generic recommendation, RetrofitIQ aims to simulate different retrofit scenarios and compare their expected impact.
+The system does not simply recommend an individual HVAC measure.
+
+It evaluates combinations of retrofit measures, estimates their impact, scores them across multiple decision criteria, checks budget feasibility, and ranks the resulting **complete retrofit packages**.
 
 ### The End Goal
 
-**Building → Analyze → Predict → Simulate → Compare → Rank → Recommend**
+**Building → Diagnose → Predict → Simulate → Score → Rank → Explain**
 
 ---
 
@@ -29,17 +36,24 @@ Instead of giving a generic recommendation, RetrofitIQ aims to simulate differen
 | Area | Status |
 |---|:---:|
 | Dataset Collection | ✅ Done |
-| Parameter Selection | ✅ Done |
-| Data Cleaning | ✅ Done |
-| Data Reprocessing | ✅ Done |
-| GitHub Setup | ✅ Done |
-| ML Problem Definition | 🔄 In Progress |
-| Baseline ML Model | 🔄 In Progress |
-| Retrofit Simulation | 🔄 In Progress |
-| Impact Calculation | ⏳ Planned |
-| Ranking Engine | ⏳ Planned |
-| React Dashboard | ⏳ Planned |
-| Full Integration | ⏳ Planned |
+| Data Cleaning & Processing | ✅ Done |
+| Building EUI Benchmarking | ✅ Done |
+| HVAC Diagnostics | ✅ Done |
+| Energy Savings ML Model | ✅ Done |
+| Retrofit Simulation Logic | ✅ Done |
+| Financial Analysis | ✅ Done |
+| Comfort Analysis | ✅ Done |
+| Sustainability Analysis | ✅ Done |
+| Maintenance Analysis | ✅ Done |
+| Multi-Criteria Scoring | ✅ Done |
+| Retrofit Package Generation | ✅ Done |
+| Package Ranking | ✅ Done |
+| Budget Feasibility | ✅ Done |
+| Streamlit Dashboard | ✅ Done |
+| Package-Level Decision Charts | ✅ Done |
+| Hugging Face AI Explanation Layer | 🔄 Integrated / Testing |
+| React Dashboard | ⏳ Future Enhancement |
+| Full Production Validation | ⏳ Planned |
 
 ---
 
@@ -47,227 +61,613 @@ Instead of giving a generic recommendation, RetrofitIQ aims to simulate differen
 
 ```mermaid
 flowchart LR
-    A["🏢 Building & HVAC Data"]
-    B["🧹 Data Processing"]
-    C["🤖 ML Baseline"]
-    D["⚙️ Retrofit Simulation"]
-    E["📊 Impact Assessment"]
-    F["🏆 Priority Ranking"]
-    G["💻 React Dashboard"]
 
-    A --> B --> C --> D --> E --> F --> G
-```
+    A["🏢 Building & HVAC Inputs"]
+    B["🔍 Diagnostics"]
+    C["⚡ Energy Baseline"]
+    D["🤖 ML Savings Prediction"]
+    E["⚙️ Retrofit Candidates"]
+    F["📦 Package Generation"]
+    G["📊 Multi-Criteria Scoring"]
+    H["💰 Financial Analysis"]
+    I["🏆 Package Ranking"]
+    J["🤖 AI Explanation"]
+    K["💻 Streamlit Dashboard"]
+
+    A --> B
+    A --> C
+    C --> D
+    B --> E
+    D --> E
+    E --> F
+    F --> G
+    F --> H
+    G --> I
+    H --> I
+    I --> J
+    I --> K
+    J --> K
+````
 
 ---
 
-# 📚 Data
+# 📚 Data Sources
 
-Datasets cover different aspects of HVAC and building performance:
+RetrofitIQ uses multiple datasets for different engineering and analytical purposes.
 
-- 🏢 Building characteristics
-- 🌤️ Weather & climate
-- ❄️ HVAC systems
-- ⚡ Energy consumption
-- 🌡️ Indoor conditions
-- 👥 Occupancy
-- 📡 HVAC sensor data
-- 🔄 Pre/post-retrofit performance
+The datasets are **not blindly merged into one table**. Each dataset is used according to the information it can reliably provide.
 
-Datasets are processed separately where appropriate rather than forcing unrelated data into one model.
+### Primary / Supporting Data
+
+| Dataset                        | Purpose                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| **EESL Commercial Retrofits**  | Primary empirical retrofit, savings, financial, comfort, sustainability and maintenance reference |
+| **BDG2**                       | Building energy-use benchmarking and EUI comparison                                               |
+| **Indian Buildings Clean**     | Thermal comfort and indoor-condition context                                                      |
+| **Indian Metro Weather**       | Exploratory climate and degree-day analysis                                                       |
+| **Indian Buildings + Weather** | Building and climate context                                                                      |
+| **Bldg59 Master Hourly**       | HVAC telemetry and operational diagnostics                                                        |
+| **TestBedClean**               | Multi-zone / VAV operational diagnostics                                                          |
+| **BuildHeat**                  | HVAC distribution and system context                                                              |
+| **ASHRAE Cleaned Sample**      | Supporting building and HVAC reference                                                            |
+
+### Data Categories
+
+* 🏢 Building characteristics
+* ❄️ HVAC systems
+* ⚡ Energy consumption
+* 🌡️ Indoor environmental conditions
+* 👥 Occupancy
+* 📡 HVAC telemetry
+* 🌤️ Weather and climate
+* 🔧 Maintenance indicators
+* 🔄 Retrofit performance
+* 💰 Financial parameters
 
 ---
 
-# 🤖 Machine Learning
+# ⚡ Energy Baseline
 
-## Goal
+RetrofitIQ first establishes the building's energy baseline.
 
-Build a reliable and explainable **baseline energy prediction model**.
-
-### Workflow
+### Energy Use Intensity
 
 ```text
-Cleaning
-   ↓
-EDA
-   ↓
-Feature Selection
-   ↓
-X/y Definition
-   ↓
-Training
-   ↓
-Evaluation
-   ↓
-Best Model
+EUI = Annual Energy Consumption / Floor Area
 ```
 
-Potential predictions include:
+The building EUI is compared against peer-building distributions from the BDG2 dataset.
 
-- ⚡ Post-retrofit energy
-- 💡 Energy savings
-- 🌱 CO₂ reduction
+Reference points include:
 
-The final target will be selected after exploratory analysis.
+* P25
+* Median
+* P75
+* P90
 
-> **Important:** We will prioritize a reliable and explainable baseline model before experimenting with more complex ML approaches.
+This provides a benchmark for identifying relatively high-energy buildings.
+
+---
+
+# 🤖 Energy Savings ML Model
+
+RetrofitIQ uses a **Ridge Regression** model to estimate package-level energy savings.
+
+### Model Features
+
+The current model uses:
+
+1. Baseline EUI
+2. Floor Area
+3. Number of Floors
+4. Smart Controls
+5. AHU VFD
+6. DCV
+7. Chiller Optimization
+8. Zoning Optimization
+
+### Target
+
+The model predicts:
+
+```text
+Package Energy Savings %
+```
+
+### Model Approach
+
+```text
+Building Features
+       ↓
+Standardization
+       ↓
+Ridge Regression
+       ↓
+Package Savings Prediction
+       ↓
+Engineering Context Adjustments
+       ↓
+Final Savings Estimate
+```
+
+The prediction is constrained to a prototype operating range of:
+
+```text
+10% → 45%
+```
+
+> **Important:** The current model is a prototype because the primary empirical retrofit dataset contains a relatively small number of projects. Predictions should therefore be interpreted as decision-support estimates rather than guaranteed field performance.
+
+---
+
+# 🔍 HVAC Diagnostics
+
+RetrofitIQ includes an operational-condition diagnostic layer.
+
+The diagnostic system evaluates issues such as:
+
+* Poor zoning
+* Ventilation imbalance
+* Economizer faults
+* Sensor mismatch
+
+Diagnostic severity is represented on a:
+
+```text
+0 → 5
+```
+
+scale.
+
+### Retrofit Gating
+
+Certain diagnosed problems can directly activate relevant retrofit candidates.
+
+| Diagnostic            | Candidate Retrofit  |
+| --------------------- | ------------------- |
+| Poor Zoning           | Zoning Optimization |
+| Ventilation Imbalance | DCV                 |
+| Economizer Fault      | Smart Controls      |
+| Sensor Mismatch       | Smart Controls      |
+
+AHU VFD and Chiller Optimization remain available as downstream retrofit candidates based on building and HVAC characteristics.
 
 ---
 
 # ⚙️ Retrofit Strategies
 
-| Retrofit | Purpose |
-|---|---|
-| 🎛️ **Smart Controls** | Optimize schedules and setpoints |
-| 🌀 **AHU VFD** | Adjust fan speed to demand |
-| 🌬️ **DCV** | Match ventilation to occupancy |
-| 🏢 **Zoning Optimization** | Optimize individual zones |
-| ❄️ **Chiller Optimization** | Improve chiller efficiency |
+RetrofitIQ currently evaluates five major retrofit measures.
 
-Simulation approaches are currently under evaluation, including **Python modelling, EnergyPlus, SimScale, ML-assisted, and hybrid approaches**.
+| Retrofit                    | Purpose                                                   |
+| --------------------------- | --------------------------------------------------------- |
+| 🎛️ **Smart Controls**      | Improve scheduling, control logic and operating setpoints |
+| 🌀 **AHU VFD**              | Adjust fan speed according to demand                      |
+| 🌬️ **DCV**                 | Adjust ventilation according to occupancy/demand          |
+| 🏢 **Zoning Optimization**  | Improve control and operation of individual zones         |
+| ❄️ **Chiller Optimization** | Improve chiller operating efficiency                      |
 
-> Prototype assumptions will be clearly identified and will not be presented as physics-accurate results.
-
----
-
-# 📈 Impact Analysis
-
-Each retrofit is compared against the baseline.
-
-### ⚡ Energy Saved
-
-```text
-Energy Saved = Baseline Energy − Retrofit Energy
-```
-
-### 📊 Energy Saving %
-
-```text
-Energy Saving % =
-(Energy Saved / Baseline Energy) × 100
-```
-
-### 💰 Cost Benefit
-
-```text
-Cost Benefit = Baseline Cost − Retrofit Cost
-```
-
-### 🌱 CO₂ Reduction
-
-```text
-CO₂ Reduction = Baseline CO₂ − Retrofit CO₂
-```
-
-### 🌡️ Comfort
-
-Where data is available, comfort will also consider:
-
-- Temperature
-- Relative humidity
-- Zone temperature
-- Setpoint deviation
+The system evaluates these measures individually as candidates and then generates **complete retrofit packages**.
 
 ---
 
-# 🏆 Priority Engine
+# 📦 Retrofit Packages
 
-RetrofitIQ will rank interventions using:
+A major part of RetrofitIQ is the package-level decision engine.
 
-- ⚡ Energy
-- 🌡️ Comfort
-- 💰 Cost Benefit
-- 🌱 Sustainability
-- 🔧 Maintenance
-- 🏗️ Feasibility
-- 🚨 Urgency
+Instead of only asking:
 
-## Priority Score
+> "Which single retrofit saves the most energy?"
+
+RetrofitIQ asks:
+
+> **"Which combination of retrofits provides the most suitable overall decision for this building?"**
+
+Package calculations include:
+
+* Combined energy savings
+* Package CAPEX
+* Annual energy savings
+* Annual monetary savings
+* Payback
+* Energy score
+* Comfort score
+* Cost-benefit score
+* Sustainability score
+* Maintenance score
+* Final RetrofitIQ score
+* Grade
+* Budget feasibility
+
+---
+
+# 📈 Energy Impact
+
+### Baseline Energy
 
 ```text
-Priority =
-w₁(Energy) +
-w₂(Comfort) +
-w₃(Cost Benefit) +
-w₄(Sustainability) +
-w₅(Maintenance) +
-w₆(Feasibility) +
-w₇(Urgency)
+Baseline Energy = EUI × Floor Area
 ```
 
-Weights will be refined during development.
+### Energy Saved
 
-> **Current rankings are conceptual. Final scores will be generated by the implemented system.**
+```text
+Energy Saved =
+Baseline Energy × Savings % / 100
+```
+
+### Post-Retrofit Energy
+
+```text
+Post Energy =
+Baseline Energy − Energy Saved
+```
+
+### Combined Package Savings
+
+For multiple retrofit measures:
+
+```text
+Remaining =
+Π (1 − Individual Savingsᵢ / 100)
+```
+
+Therefore:
+
+```text
+Combined Savings % =
+(1 − Remaining) × 100
+```
+
+This prevents package savings from being calculated as a simple addition of individual savings.
 
 ---
 
-# 💻 Dashboard
+# 💰 Financial Analysis
 
-The React dashboard will allow users to:
+RetrofitIQ evaluates the financial implications of each retrofit package.
 
-1. 🏢 Select a building
-2. 📊 View current performance
-3. 🤖 Generate baseline predictions
-4. ⚙️ Select a retrofit
-5. 🔬 Run a simulation
-6. 📈 Compare results
-7. 🏆 View retrofit rankings
-8. 🥇 Get a final recommendation
+### CAPEX
 
-### Key Outputs
+Package CAPEX is calculated as the sum of the applicable retrofit costs.
 
-**Energy • Savings • Cost • CO₂ • Comfort • Priority Score • Recommendation**
+Current prototype rates include:
+
+| Retrofit             | CAPEX Rate |
+| -------------------- | ---------: |
+| Smart Controls       |    ₹350/m² |
+| AHU VFD              |    ₹333/m² |
+| DCV                  |    ₹303/m² |
+| Chiller Optimization |    ₹380/m² |
+| Zoning Optimization  |    ₹308/m² |
+
+### Annual Monetary Savings
+
+```text
+Annual Savings =
+Annual Energy Saved × Electricity Tariff
+```
+
+The current default tariff is:
+
+```text
+₹9 / kWh
+```
+
+### Payback
+
+```text
+Payback =
+Package CAPEX / Annual Savings
+```
+
+### Budget Feasibility
+
+Packages are also checked against the building's available retrofit budget.
+
+```text
+Package CAPEX ≤ Available Budget
+```
 
 ---
 
-# 🏗️ Architecture
+# 🌡️ Comfort Analysis
+
+RetrofitIQ includes a thermal-comfort model using a **Random Forest Regressor**.
+
+The current model uses:
+
+* Indoor temperature
+* Relative humidity
+* Air velocity
+
+to estimate thermal sensation.
+
+### Model Configuration
+
+```text
+Model: Random Forest Regressor
+Trees: 300
+Minimum Leaf Size: 5
+Train/Test Split: 80/20
+Random State: 42
+```
+
+Because clothing insulation and metabolic rate are not available in the current dataset, the system does **not** claim to implement a full PMV/PPD calculation.
+
+---
+
+# 🌱 Sustainability Analysis
+
+RetrofitIQ evaluates sustainability using CO₂-related impact estimates.
+
+The sustainability layer uses empirical EESL references together with building-context adjustments such as:
+
+* Floor area
+* Building age
+* HVAC characteristics
+* HVAC distribution
+
+The result is converted into a sustainability score used by the final decision engine.
+
+---
+
+# 🔧 Maintenance Analysis
+
+Maintenance is included as one of the decision criteria.
+
+The maintenance score considers:
+
+* Building age
+* HVAC characteristics
+* HVAC distribution
+* Empirical EESL maintenance references
+
+Where historical maintenance information is directly applicable to an implemented retrofit, it can be incorporated into the building-specific assessment.
+
+Otherwise, the system uses the relevant empirical group reference.
+
+---
+
+# 🏆 RetrofitIQ Scoring Engine
+
+RetrofitIQ combines multiple decision dimensions into one final package score.
+
+The current weighted score is:
+
+```text
+Final Score =
+0.25 × Energy
++ 0.20 × Comfort
++ 0.25 × Cost Benefit
++ 0.20 × Sustainability
++ 0.10 × Maintenance
+```
+
+All component scores use a:
+
+```text
+1 → 5
+```
+
+scale.
+
+### Weight Distribution
+
+| Criterion         | Weight |
+| ----------------- | -----: |
+| ⚡ Energy          |    25% |
+| 🌡️ Comfort       |    20% |
+| 💰 Cost Benefit   |    25% |
+| 🌱 Sustainability |    20% |
+| 🔧 Maintenance    |    10% |
+
+---
+
+# 🏅 Package Grades
+
+The final package score is converted into a grade.
+
+|       Score | Grade | Interpretation     |
+| ----------: | :---: | ------------------ |
+|      ≥ 4.00 |   A   | Highly Recommended |
+| 3.00 – 3.99 |   B   | Recommended        |
+| 2.00 – 2.99 |   C   | Consider           |
+| 1.00 – 1.99 |   D   | Low Priority       |
+|      < 1.00 |   F   | Not Recommended    |
+
+These grades are generated from the implemented scoring system.
+
+---
+
+# 🥇 Package Ranking
+
+Complete retrofit packages are ranked using:
+
+```text
+1. Package Score ↓
+2. Combined Savings % ↓
+3. Payback ↑
+```
+
+The system therefore compares **complete packages**, rather than ranking individual retrofit measures as the final decision.
+
+---
+
+# 📊 Dashboard
+
+RetrofitIQ currently uses a **Streamlit dashboard** for the working prototype.
+
+The dashboard allows users to:
+
+1. 🏢 Enter building characteristics
+2. ❄️ Enter HVAC/system information
+3. ⚡ Define energy and financial parameters
+4. 🔍 Review operational diagnostics
+5. ⚙️ Generate retrofit candidates
+6. 📦 Compare complete retrofit packages
+7. 💰 Review financial performance
+8. 🏆 View package rankings
+9. 🤖 Ask RetrofitIQ AI for an explanation
+
+---
+
+# 📈 Package-Level Decision Charts
+
+The dashboard intentionally focuses its main decision visualizations on **complete retrofit packages**.
+
+## 1. Retrofit Package Ranking
+
+A horizontal bar chart displays:
+
+```text
+Highest Package Score
+        ↓
+Lowest Package Score
+```
+
+Each package can be inspected through tooltips containing:
+
+* Rank
+* Package
+* Grade
+* Package Score
+* Combined Savings %
+* CAPEX
+* Annual Savings
+* Payback
+
+---
+
+## 2. CAPEX vs Annual Savings
+
+For every package rank, the dashboard displays:
+
+```text
+CAPEX        Annual Savings
+  ████           ███████
+```
+
+The two financial values appear side-by-side for direct package-level comparison.
+
+---
+
+# 🤖 RetrofitIQ AI
+
+RetrofitIQ includes a separate **LLM explanation layer** powered through the Hugging Face inference ecosystem.
+
+The AI layer is designed to explain the calculations already produced by the engineering and scoring system.
+
+### Architecture
+
+```text
+Engineering Engine
+       ↓
+Calculated Results
+       ↓
+Structured Context
+       ↓
+Hugging Face LLM
+       ↓
+Natural-Language Explanation
+```
+
+### The LLM Does
+
+* Explain the selected package
+* Explain why a package received its score
+* Explain energy and financial results
+* Explain diagnostics
+* Explain trade-offs
+* Answer questions about the displayed results
+
+### The LLM Does NOT
+
+* Change package scores
+* Re-rank packages
+* Invent savings
+* Invent CAPEX
+* Invent payback
+* Override engineering calculations
+* Generate unsupported accuracy claims
+
+> **The engineering and scoring engine remains the source of truth. The LLM is an explanation layer, not the decision engine.**
+
+---
+
+# 🧠 Hybrid Architecture
+
+RetrofitIQ intentionally combines machine learning with deterministic engineering logic.
 
 ```mermaid
 flowchart TD
 
-    DATA["📚 DATA SOURCES"]
+    INPUT["🏢 Building + HVAC Inputs"]
 
-    DATA --> BUILD["🏢 Building Data"]
-    DATA --> HVAC["❄️ HVAC Data"]
-    DATA --> WEATHER["🌤️ Weather Data"]
-    DATA --> SENSOR["📡 Sensor Data"]
+    INPUT --> DIAG["🔍 Diagnostic Rules"]
+    INPUT --> EUI["⚡ EUI Benchmarking"]
 
-    BUILD --> PROCESS["🧹 DATA PROCESSING"]
-    HVAC --> PROCESS
-    WEATHER --> PROCESS
-    SENSOR --> PROCESS
+    EUI --> ML["🤖 Ridge ML Model"]
 
-    PROCESS --> ML["🤖 ML ENGINE"]
+    DIAG --> CANDIDATES["⚙️ Retrofit Candidates"]
+    ML --> CANDIDATES
 
-    ML --> BASE["Baseline Energy Prediction"]
+    CANDIDATES --> PACKAGES["📦 Retrofit Packages"]
 
-    BASE --> SIM["⚙️ RETROFIT SIMULATOR"]
+    PACKAGES --> ENERGY["⚡ Energy"]
+    PACKAGES --> COMFORT["🌡️ Comfort"]
+    PACKAGES --> COST["💰 Cost Benefit"]
+    PACKAGES --> SUSTAIN["🌱 Sustainability"]
+    PACKAGES --> MAINT["🔧 Maintenance"]
 
-    SIM --> SC["Smart Controls"]
-    SIM --> VFD["AHU VFD"]
-    SIM --> DCV["DCV"]
-    SIM --> ZONE["Zoning Optimization"]
-    SIM --> CHILLER["Chiller Optimization"]
+    ENERGY --> SCORE["🏆 Final Score"]
+    COMFORT --> SCORE
+    COST --> SCORE
+    SUSTAIN --> SCORE
+    MAINT --> SCORE
 
-    SC --> IMPACT["📊 IMPACT ASSESSMENT"]
-    VFD --> IMPACT
-    DCV --> IMPACT
-    ZONE --> IMPACT
-    CHILLER --> IMPACT
+    SCORE --> RANK["🥇 Package Ranking"]
 
-    IMPACT --> ENERGY["Energy Used / Saved"]
-    IMPACT --> COST["Cost / Cost Benefit"]
-    IMPACT --> CO2["CO₂ Reduction"]
-    IMPACT --> COMFORT["Comfort"]
+    RANK --> DASH["💻 Streamlit Dashboard"]
 
-    ENERGY --> RANK["🏆 PRIORITY ENGINE"]
-    COST --> RANK
-    CO2 --> RANK
-    COMFORT --> RANK
-
-    RANK --> DASH["💻 REACT DASHBOARD"]
-
-    DASH --> REC["🥇 FINAL RECOMMENDATION"]
+    DASH --> AI["🤖 Hugging Face Explanation Layer"]
 ```
+
+---
+
+# 🌤️ Climate Analysis
+
+Climate normalization was explored during development using heating and cooling degree-day concepts.
+
+Example calculations included:
+
+```text
+HDD18 = Σ max(0, 18 − Daily Mean Temperature)
+
+CDD18 = Σ max(0, Daily Mean Temperature − 18)
+
+CDD24 = Σ max(0, Daily Mean Temperature − 24)
+```
+
+However, climate normalization is **not currently used as a final model input** because of limitations in matching building locations, weather data and the available sample size.
+
+> Climate calculations should therefore not be interpreted as part of the final RetrofitIQ recommendation unless explicitly included in the displayed result.
+
+---
+
+# 🏗️ Engineering Context Adjustments
+
+The prototype includes deterministic context adjustments for HVAC characteristics.
+
+Examples include:
+
+* Chiller type and age
+* AHU VFD status
+* Building age
+* HVAC distribution
+* EUI percentile
+* Existing system characteristics
+
+These adjustments are applied alongside the ML estimate rather than replacing the ML model.
 
 ---
 
@@ -275,131 +675,242 @@ flowchart TD
 
 ```text
 RetrofitIQ/
+│
 ├── data/
 │   ├── raw/
 │   ├── cleaned/
 │   └── processed/
 │
-├── notebooks/
-│   ├── 01_data_analysis.ipynb
-│   ├── 02_feature_analysis.ipynb
-│   └── 03_ml_model.ipynb
-│
 ├── src/
-│   ├── preprocessing/
-│   ├── features/
-│   ├── models/
-│   ├── simulation/
-│   └── ranking/
+│   └── Person D/
+│       ├── app.py
+│       └── llm_explainer.py
 │
 ├── models/
-├── backend/
-├── frontend/
+│
+├── notebooks/
+│
 ├── reports/
+│
+├── .streamlit/
+│   └── secrets.toml
+│
 ├── requirements.txt
+├── requirements_llm.txt
 └── README.md
 ```
 
 ---
 
-# 🗺️ Roadmap
+# 🛠️ Tech Stack
+
+## Data & Machine Learning
+
+**Python • Pandas • NumPy • Scikit-learn • SciPy • Joblib**
+
+## Dashboard
+
+**Streamlit • Altair**
+
+## AI Explanation
+
+**Hugging Face Inference Providers • OpenAI-compatible API**
+
+## Machine Learning Models
+
+**Ridge Regression • Random Forest Regressor**
+
+## Engineering / Decision Logic
+
+**Python • Deterministic Scoring • Financial Calculations • HVAC Diagnostics**
+
+---
+
+# 🚀 Running RetrofitIQ
+
+Create/activate the Python virtual environment:
+
+```text
+.venv
+```
+
+Install dependencies:
+
+```bat
+pip install -r requirements.txt
+```
+
+For the LLM integration:
+
+```bat
+pip install -r requirements_llm.txt
+```
+
+Run the Streamlit application:
+
+```bat
+streamlit run "src\Person D\app.py"
+```
+
+The dashboard will open locally through Streamlit.
+
+---
+
+# 🗺️ Development Roadmap
 
 ## Phase 1 — Data Foundation
 
-- [x] Dataset collection
-- [x] Parameter selection
-- [x] Data cleaning
-- [x] Data reprocessing
-- [x] GitHub setup
+* [x] Dataset collection
+* [x] Dataset cleaning
+* [x] Dataset processing
+* [x] Parameter selection
+* [x] EUI benchmarking
 
-## Phase 2 — ML Baseline
+## Phase 2 — Building Diagnostics
 
-- [ ] Define ML problem
-- [ ] Define X and y
-- [ ] Perform EDA
-- [ ] Train baseline models
-- [ ] Evaluate models
-- [ ] Select best model
-- [ ] Save trained model
+* [x] HVAC operational diagnostics
+* [x] Poor zoning detection
+* [x] Ventilation imbalance detection
+* [x] Economizer fault detection
+* [x] Sensor mismatch detection
+* [x] Retrofit candidate gating
 
-## Phase 3 — Retrofit Simulation
+## Phase 3 — Energy Prediction
 
-- [ ] Select simulation approach
-- [ ] Define baseline behaviour
-- [ ] Define retrofit parameters
-- [ ] Simulate retrofit scenarios
-- [ ] Validate assumptions
+* [x] Define energy prediction features
+* [x] Build baseline Ridge model
+* [x] Train savings prediction model
+* [x] Apply engineering context adjustments
+* [x] Calculate baseline energy
+* [x] Calculate post-retrofit energy
+* [x] Calculate energy savings
 
-## Phase 4 — Impact & Ranking
+## Phase 4 — Retrofit Evaluation
 
-- [ ] Calculate energy usage
-- [ ] Calculate energy savings
-- [ ] Calculate cost benefit
-- [ ] Calculate CO₂ reduction
-- [ ] Evaluate comfort
-- [ ] Evaluate feasibility
-- [ ] Implement priority scoring
-- [ ] Generate retrofit ranking
+* [x] Smart Controls
+* [x] AHU VFD
+* [x] DCV
+* [x] Zoning Optimization
+* [x] Chiller Optimization
+* [x] Individual retrofit calculations
+* [x] Retrofit package generation
+* [x] Combined package savings
 
-## Phase 5 — React Dashboard
+## Phase 5 — Decision Engine
 
-- [ ] Create dashboard
-- [ ] Building selection
-- [ ] Performance overview
-- [ ] Retrofit selection
-- [ ] Simulation interface
-- [ ] Results visualization
-- [ ] Retrofit comparison
-- [ ] Ranking display
-- [ ] Recommendation display
+* [x] Energy scoring
+* [x] Comfort scoring
+* [x] Cost-benefit scoring
+* [x] Sustainability scoring
+* [x] Maintenance scoring
+* [x] Final weighted score
+* [x] Package grading
+* [x] Package ranking
+* [x] Budget feasibility
+* [x] Payback calculation
 
-## Phase 6 — Integration
+## Phase 6 — Dashboard
 
-- [ ] Connect ML model
-- [ ] Connect simulation engine
-- [ ] Connect ranking engine
-- [ ] Connect React frontend
-- [ ] End-to-end testing
-- [ ] Final demonstration
+* [x] Building input interface
+* [x] Energy baseline display
+* [x] Diagnostic results
+* [x] Retrofit candidate display
+* [x] Package comparison
+* [x] Package ranking
+* [x] CAPEX vs Annual Savings chart
+* [x] Package-level tooltips
+* [x] Financial analysis
+* [x] Selected package explanation
+
+## Phase 7 — AI Explanation
+
+* [x] LLM explanation layer
+* [x] Hugging Face integration
+* [x] Structured RetrofitIQ context
+* [x] Grounded explanation prompts
+* [x] Dashboard AI question panel
+* [ ] Full end-to-end LLM testing
+
+## Phase 8 — Future Development
+
+* [ ] Larger validated retrofit dataset
+* [ ] Expanded model validation
+* [ ] Additional building types
+* [ ] More detailed simulation validation
+* [ ] Production deployment
+* [ ] React frontend
+* [ ] Full backend/frontend separation
+* [ ] End-to-end production testing
 
 ---
 
-# 🚨 Development Principle
+# 🚨 Development Principles
 
-When unsure what to build next:
+RetrofitIQ follows several principles throughout development.
 
-**Data → ML → Baseline → Simulation → Impact → Ranking → Dashboard**
+### 1. Engineering Before AI
 
-> **Do not build the dashboard before the core calculations work.**
+```text
+Data
+ ↓
+Engineering Logic
+ ↓
+ML Prediction
+ ↓
+Decision Engine
+ ↓
+AI Explanation
+```
 
-### We Will Avoid
+The LLM does not replace the engineering calculations.
 
-- ❌ Inventing missing data
-- ❌ Hardcoded recommendations
-- ❌ Fake ML accuracy
-- ❌ Forcing unrelated datasets together
-- ❌ Unnecessary deep learning
-- ❌ Presenting assumptions as real simulations
-- ❌ Building UI before the core engine
-- ❌ Adding AI/LLMs without a meaningful purpose
+### 2. Explainability
+
+Every important recommendation should be traceable to:
+
+* Building inputs
+* Dataset references
+* Model outputs
+* Engineering assumptions
+* Scoring formulas
+* Financial calculations
+
+### 3. No Invented Results
+
+RetrofitIQ avoids:
+
+* ❌ Invented energy savings
+* ❌ Fake ML accuracy
+* ❌ Fabricated CAPEX
+* ❌ Unsupported payback values
+* ❌ Hardcoded recommendations
+* ❌ Unsupported climate claims
+* ❌ Presenting assumptions as measured results
+
+### 4. Package-Level Decision Making
+
+The final recommendation focuses on **complete retrofit packages**, not isolated measures.
+
+### 5. Prototype Transparency
+
+Where datasets are small or assumptions are required, the system clearly identifies the result as a prototype estimate rather than claiming field-level accuracy.
 
 ---
 
-# 🛠️ Tech Stack
+# ⚠️ Current Limitations
 
-### Data & ML
+RetrofitIQ is currently a research/prototype decision-support system.
 
-**Python • Pandas • NumPy • Scikit-learn**
+Important limitations include:
 
-### Frontend
-
-**React**
-
-### Simulation
-
-**EnergyPlus • SimScale • Python • Hybrid Approaches**
-
-*Final simulation approach is under evaluation.*
+* The primary empirical retrofit dataset is relatively small.
+* Energy savings predictions should be treated as estimates.
+* Full physics-based simulation is not currently used as the final engine.
+* Thermal comfort modelling does not currently implement complete PMV/PPD because clothing and metabolic inputs are unavailable.
+* Climate normalization is exploratory and not part of the final recommendation model.
+* Retrofit CAPEX values are prototype assumptions/reference rates.
+* The system requires further validation against larger real-world retrofit datasets.
+* Production deployment and large-scale testing are future work.
 
 ---
 
@@ -407,15 +918,22 @@ When unsure what to build next:
 
 ### Vellore Institute of Technology, Chennai
 
-- **Jaagriti Mandal**
-- **Swati Yadav**
-- **Ashita Kuchhal**
-- **Aneesha Yadav**
+* **Jaagriti Mandal**
+* **Swati Yadav**
+* **Ashita Kuchhal**
+* **Aneesha Yadav**
 
-----
+---
 
 # 🚀 RetrofitIQ
 
-## HVAC Data → ML Prediction → Retrofit Simulation → Impact Analysis → Intelligent Recommendation
+## HVAC Data → Diagnostics → ML Prediction → Retrofit Packages → Impact Analysis → Ranking → Intelligent Explanation
 
 **🏆 Round 2 — Development in Progress**
+
+> **RetrofitIQ doesn't just ask how much energy a retrofit can save.**
+>
+> **It asks which retrofit package makes the most sense for the building — and why.**
+
+```
+```
