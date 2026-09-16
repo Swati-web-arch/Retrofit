@@ -19,6 +19,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from llm_explainer import ask_retrofit_ai, build_retrofit_context
+
 from combiner import (
     DEFAULT_WEIGHTS,
     classify_eui,
@@ -214,7 +216,7 @@ if st.session_state["page_view"] == "input":
         # Energy Baseline & Financial Parameters
         # -------------------------------------------------------------------
         st.markdown("---")
-        st.subheader("3. Energy Baseline & Financial Parameters")
+        st.subheader("2. Energy Baseline & Financial Parameters")
 
         energy_methods = ["Baseline EUI (kWh/m²/yr)", "Annual Energy Consumption (kWh/yr)"]
         em_idx = energy_methods.index(saved.get("energy_input_method", energy_methods[0])) if saved.get("energy_input_method") in energy_methods else 0
@@ -296,7 +298,7 @@ if st.session_state["page_view"] == "input":
             building_features["budget"] = float(available_budget)
 
     with col2:
-        st.subheader("4. Operational Condition Assessment")
+        st.subheader("3. Operational Condition Assessment")
         st.caption(
             "Rate the current severity of each HVAC operating condition from 0 (no evidence) to 5 (severe). "
             "These assessments directly inform retrofit relevance and scoring."
@@ -534,11 +536,156 @@ elif st.session_state["page_view"] == "dashboard":
                 f"**{pkg['Payback (Years)']:.2f} years**."
             )
             st.caption("Select another package in the table above to update the details and explanation.")
+
+            # -------------------------------------------------------------------
+            # RetrofitIQ AI — grounded explanation layer
+            # -------------------------------------------------------------------
+            st.markdown("### 🤖 Ask RetrofitIQ AI")
+            st.caption(
+                "Ask questions about the current building, selected package, scores, "
+                "costs, savings, diagnostics, or trade-offs. The LLM explains the "
+                "calculated RetrofitIQ results; it does not change them."
+            )
+
+            ai_question = st.text_input(
+                "Your question",
+                placeholder="Why was this package selected?",
+                key="retrofit_ai_question",
+            )
+            ai_col1, ai_col2 = st.columns([1, 4])
+            with ai_col1:
+                ask_ai = st.button(
+                    "Ask AI",
+                    type="primary",
+                    use_container_width=True,
+                    key="ask_retrofit_ai",
+                )
+
+            if ask_ai:
+                if not ai_question.strip():
+                    st.warning("Enter a question first.")
+                else:
+                    selected_package_context = pkg.to_dict()
+                    context = build_retrofit_context(
+                        building_features=b_features,
+                        inefficiency_flags=st.session_state.get("inefficiency_flags", {}),
+                        weights=st.session_state.get("weights", {}),
+                        package=selected_package_context,
+                        results_df=results_df,
+                    )
+                    with st.spinner("RetrofitIQ AI is explaining the current results..."):
+                        try:
+                            answer = ask_retrofit_ai(ai_question, context)
+                            st.session_state["retrofit_ai_answer"] = answer
+                        except Exception as exc:
+                            st.error(f"Could not contact RetrofitIQ AI: {exc}")
+
+            if st.session_state.get("retrofit_ai_answer"):
+                st.markdown("**RetrofitIQ AI response**")
+                st.info(st.session_state["retrofit_ai_answer"])
+                st.caption(
+                    "Grounding rule: RetrofitIQ AI explains the existing engineering/ML "
+                    "results and cannot modify the calculated score or recommendation."
+                )
         else:
             st.info(
                 "No combination of Grade A/B retrofits currently fits within the available CAPEX. "
                 "Try increasing the budget."
             )
+
+        # -------------------------------------------------------------------
+        # Package-Level Decision Charts
+        # -------------------------------------------------------------------
+        if not package_df.empty:
+            st.markdown("---")
+            st.subheader("Package-Level Decision Comparison")
+            st.caption(
+                "These charts compare complete retrofit packages only. Package rank follows the "
+                "RetrofitIQ package score, not the score of any individual measure."
+            )
+
+            package_chart_df = package_df.copy().reset_index(drop=True)
+            package_chart_df["Rank"] = [f"Rank {i + 1}" for i in range(len(package_chart_df))]
+            package_chart_df["Package Label"] = package_chart_df.apply(
+                lambda r: f"Rank {r['Rank'].split()[-1]} — {r['Package']}", axis=1
+            )
+
+            chart_col1, chart_col2 = st.columns(2)
+
+            with chart_col1:
+                st.markdown("##### Retrofit Package Ranking")
+                ranking_chart = (
+                    alt.Chart(package_chart_df)
+                    .mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
+                    .encode(
+                        x=alt.X("Package Score:Q", title="Package Score (1–5)", scale=alt.Scale(domain=[0, 5])),
+                        y=alt.Y("Package Label:N", title="Package", sort=None),
+                        color=alt.Color("Package Label:N", title="Package"),
+                        tooltip=[
+                            alt.Tooltip("Rank:N", title="Rank"),
+                            alt.Tooltip("Package:N", title="Package"),
+                            alt.Tooltip("Package Grade:N", title="Grade"),
+                            alt.Tooltip("Package Score:Q", title="Score", format=".3f"),
+                            alt.Tooltip("Combined Savings %:Q", title="Savings", format=".1f"),
+                            alt.Tooltip("Package CAPEX (INR):Q", title="CAPEX", format=",.0f"),
+                            alt.Tooltip("Annual Savings (INR):Q", title="Annual savings", format=",.0f"),
+                            alt.Tooltip("Payback (Years):Q", title="Payback", format=".2f"),
+                        ],
+                    )
+                    .properties(height=max(300, 55 * len(package_chart_df)))
+                )
+                st.altair_chart(ranking_chart, use_container_width=True)
+
+            with chart_col2:
+                st.markdown("##### CAPEX vs Annual Savings by Package Rank")
+                financial_rows = []
+                for _, row in package_chart_df.iterrows():
+                    financial_rows.extend([
+                        {
+                            "Rank": row["Rank"],
+                            "Package": row["Package"],
+                            "Metric": "CAPEX",
+                            "Amount": row["Package CAPEX (INR)"],
+                            "Package Score": row["Package Score"],
+                            "Package Grade": row["Package Grade"],
+                            "Combined Savings %": row["Combined Savings %"],
+                            "Payback (Years)": row["Payback (Years)"],
+                        },
+                        {
+                            "Rank": row["Rank"],
+                            "Package": row["Package"],
+                            "Metric": "Annual Savings",
+                            "Amount": row["Annual Savings (INR)"],
+                            "Package Score": row["Package Score"],
+                            "Package Grade": row["Package Grade"],
+                            "Combined Savings %": row["Combined Savings %"],
+                            "Payback (Years)": row["Payback (Years)"],
+                        },
+                    ])
+                financial_df = pd.DataFrame(financial_rows)
+                financial_chart = (
+                    alt.Chart(financial_df)
+                    .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+                    .encode(
+                        x=alt.X("Rank:N", title="Package Rank", sort=list(package_chart_df["Rank"])),
+                        xOffset=alt.XOffset("Metric:N"),
+                        y=alt.Y("Amount:Q", title="Amount (INR)"),
+                        color=alt.Color("Metric:N", title="Financial Metric"),
+                        tooltip=[
+                            alt.Tooltip("Rank:N", title="Rank"),
+                            alt.Tooltip("Package:N", title="Package"),
+                            alt.Tooltip("Metric:N", title="Metric"),
+                            alt.Tooltip("Amount:Q", title="Amount", format=",.0f"),
+                            alt.Tooltip("Package Score:Q", title="Package score", format=".3f"),
+                            alt.Tooltip("Package Grade:N", title="Grade"),
+                            alt.Tooltip("Combined Savings %:Q", title="Savings", format=".1f"),
+                            alt.Tooltip("Payback (Years):Q", title="Payback", format=".2f"),
+                        ],
+                    )
+                    .properties(height=max(300, 55 * len(package_chart_df)))
+                )
+                st.altair_chart(financial_chart, use_container_width=True)
+
 
         # -------------------------------------------------------------------
         # Expandable Individual Retrofit Analysis
@@ -624,70 +771,6 @@ elif st.session_state["page_view"] == "dashboard":
                     f"- **Payback Period:** **{top_option['Payback (Years)']:.2f} years**\n"
                     f"- **Budget Feasibility:** {top_option['Budget Feasibility']}"
                 )
-
-            # -------------------------------------------------------------------
-            # Visual Dashboards: Multi-Axis & Financials
-            # -------------------------------------------------------------------
-            st.markdown("---")
-            st.subheader("Multi-Option Performance & Financial Dashboards")
-            st.caption("Direct visual comparison across all 5 catalog candidates.")
-
-            chart_col1, chart_col2 = st.columns(2)
-
-            with chart_col1:
-                st.markdown("##### Multi-Axis Performance Scores (Scale 1–5)")
-                melted_scores = []
-                for _, r in results_df.iterrows():
-                    for axis in ["Energy", "Comfort", "Cost Benefit", "Sustainability", "Maintenance"]:
-                        melted_scores.append({
-                            "Retrofit": r["Retrofit Option"],
-                            "Axis": axis,
-                            "Score": r[axis],
-                        })
-                scores_df = pd.DataFrame(melted_scores)
-                axis_chart = (
-                    alt.Chart(scores_df)
-                    .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-                    .encode(
-                        x=alt.X("Axis:N", title="Evaluation Axis", sort=None),
-                        y=alt.Y("Score:Q", title="Score (1 to 5)", scale=alt.Scale(domain=[0, 5])),
-                        color=alt.Color("Retrofit:N", title="Retrofit Option", scale=alt.Scale(scheme="category10")),
-                        xOffset="Retrofit:N",
-                        tooltip=["Retrofit", "Axis", "Score"],
-                    )
-                    .properties(height=320)
-                )
-                st.altair_chart(axis_chart, use_container_width=True)
-
-            with chart_col2:
-                st.markdown("##### Financial Comparison: Upgrade Cost vs. Annual Savings (INR)")
-                fin_melted = []
-                for _, r in results_df.iterrows():
-                    fin_melted.append({
-                        "Retrofit": r["Retrofit Option"],
-                        "Metric": "Annual Savings (INR)",
-                        "Amount": r["Annual Savings (INR)"],
-                    })
-                    fin_melted.append({
-                        "Retrofit": r["Retrofit Option"],
-                        "Metric": "Upgrade Cost (INR)",
-                        "Amount": r["Upgrade Cost (INR)"],
-                    })
-                fin_melted_df = pd.DataFrame(fin_melted)
-
-                fin_chart = (
-                    alt.Chart(fin_melted_df)
-                    .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-                    .encode(
-                        x=alt.X("Retrofit:N", title="Retrofit Option", sort=None),
-                        y=alt.Y("Amount:Q", title="Amount (INR)"),
-                        color=alt.Color("Metric:N", title="Financial Metric", scale=alt.Scale(scheme="set2")),
-                        xOffset="Metric:N",
-                        tooltip=["Retrofit", "Metric", alt.Tooltip("Amount:Q", format=",.0f")],
-                    )
-                    .properties(height=320)
-                )
-                st.altair_chart(fin_chart, use_container_width=True)
 
             # Build the same styled ranking table used by the dashboard, while
             # keeping the underlying results_df untouched for all core logic.
