@@ -1,0 +1,40 @@
+# Data
+data/raw/*.csv
+data/raw/*.zip
+!data/raw/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+venv/
+.venv/
+env/
+
+# Testing / caching
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+
+# Streamlit
+.streamlit/

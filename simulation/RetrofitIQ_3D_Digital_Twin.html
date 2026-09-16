@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RetrofitIQ — 3D HVAC Digital Twin (OpenStudio & EnergyPlus Simulation)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #0b111e; color: #e2e8f0; }
+    #app { display: flex; width: 100vw; height: 100vh; position: relative; }
+    
+    /* Top Bar */
+    #topbar {
+      position: absolute; top: 0; left: 0; right: 0; height: 42px;
+      background: #0f172a; border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; z-index: 50; font-size: 13px;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; font-weight: 600; color: #f8fafc; }
+    .topbar-left svg { fill: #38bdf8; width: 20px; height: 20px; }
+    .badge { background: #0369a1; color: #e0f2fe; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+    .topbar-status { color: #94a3b8; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+
+    /* Left Sidebar */
+    #sidebar-left {
+      position: absolute; top: 42px; left: 0; bottom: 0; width: 50px;
+      background: #0f172a; border-right: 1px solid #1e293b;
+      display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 16px; z-index: 40;
+    }
+    .side-icon {
+      width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #64748b; transition: all 0.2s; position: relative;
+    }
+    .side-icon:hover { color: #f8fafc; background: #1e293b; }
+    .side-icon.active { color: #38bdf8; background: #0369a1; }
+    .side-icon svg { width: 20px; height: 20px; fill: currentColor; }
+    .tooltip {
+      position: absolute; left: 55px; background: #1e293b; color: #f8fafc; font-size: 11px;
+      padding: 4px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; opacity: 0;
+      transition: opacity 0.2s; border: 1px solid #334155; z-index: 100;
+    }
+    .side-icon:hover .tooltip { opacity: 1; }
+
+    /* 3D Viewport */
+    #viewport { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 10; cursor: grab; }
+    #viewport:active { cursor: grabbing; }
+
+    /* Right Control Panel */
+    #sidebar-right {
+      position: absolute; top: 52px; right: 12px; width: 310px;
+      background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.8); border-radius: 8px;
+      z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 12px; overflow: hidden;
+    }
+    .panel-header-tabs { display: flex; border-bottom: 1px solid #334155; background: #0a0f1d; }
+    .ptab { flex: 1; padding: 8px; text-align: center; cursor: pointer; color: #94a3b8; font-weight: 500; font-size: 11px; }
+    .ptab.active { color: #38bdf8; background: #0284c7; color: white; }
+    .panel-body { padding: 14px; display: flex; flex-direction: column; gap: 11px; max-height: calc(100vh - 120px); overflow-y: auto; }
+    .control-row { display: flex; align-items: center; justify-content: space-between; }
+    .control-row label { color: #94a3b8; font-size: 12px; }
+    .control-select {
+      background: #1e293b; color: #f8fafc; border: 1px solid #475569;
+      border-radius: 4px; padding: 4px 8px; font-size: 11px; width: 155px; outline: none;
+    }
+    .section-title {
+      font-size: 11px; font-weight: 700; color: #cbd5e1; text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-top: 4px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .filter-item { display: flex; align-items: center; gap: 6px; color: #cbd5e1; font-size: 11px; cursor: pointer; }
+    .filter-item input { accent-color: #38bdf8; cursor: pointer; }
+
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .cam-btn {
+      background: #1e293b; border: 1px solid #475569; color: #e2e8f0;
+      padding: 6px 4px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; text-align: center;
+      transition: all 0.2s;
+    }
+    .cam-btn:hover { background: #0284c7; border-color: #38bdf8; color: white; }
+
+    /* Component Inspector Modal / Flyout */
+    #inspector-panel {
+      display: none;
+      position: absolute; bottom: 20px; left: 320px; width: 340px;
+      background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px);
+      border: 1px solid #38bdf8; border-radius: 8px;
+      z-index: 45; box-shadow: 0 12px 36px rgba(0,0,0,0.6), 0 0 15px rgba(56, 189, 248, 0.25);
+      padding: 14px; font-size: 12px;
+    }
+    .inspector-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px; }
+    .inspector-title { font-size: 13px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px; }
+    .inspector-close { cursor: pointer; color: #94a3b8; font-weight: bold; font-size: 16px; transition: color 0.2s; }
+    .inspector-close:hover { color: #f43f5e; }
+    .inspector-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card { background: #1e293b; padding: 6px 8px; border-radius: 4px; border: 1px solid #334155; }
+    .stat-card-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; }
+    .stat-card-val { font-size: 13px; font-weight: 700; color: #f8fafc; margin-top: 2px; }
+    .stat-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-top: 4px; }
+    .tag-green { background: #064e3b; color: #34d399; }
+    .tag-blue { background: #0c4a6e; color: #38bdf8; }
+    .tag-orange { background: #7c2d12; color: #fb923c; }
+
+    /* Legend Card */
+    #legend-card {
+      position: absolute; bottom: 20px; left: 70px;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+      border: 1px solid rgba(51, 65, 85, 0.7); border-radius: 8px;
+      padding: 10px 14px; z-index: 30; width: 235px; font-size: 11px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4); max-height: 280px; overflow-y: auto;
+    }
+    .legend-title { font-weight: 700; color: #94a3b8; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: #e2e8f0; font-size: 11px; }
+    .legend-box { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+    /* RetrofitIQ Brand Card */
+    #brand-card {
+      position: absolute; bottom: 20px; right: 335px;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px);
+      border: 1px solid rgba(51, 65, 85, 0.8); border-radius: 8px;
+      padding: 10px 16px; z-index: 30; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .brand-logo {
+      width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #10b981, #0284c7);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .brand-logo svg { width: 20px; height: 20px; fill: white; }
+    .brand-text h3 { font-size: 14px; font-weight: 700; color: #f8fafc; letter-spacing: 0.2px; }
+    .brand-text p { font-size: 10px; color: #94a3b8; font-weight: 500; }
+
+    /* 3D Callout Pins */
+    .callout-pin {
+      position: absolute; z-index: 35; pointer-events: none;
+      transform: translate(-50%, -100%); transition: opacity 0.2s;
+    }
+    .pin-bubble {
+      background: rgba(15, 23, 42, 0.92); border: 1px solid #38bdf8;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 10px rgba(56, 189, 248, 0.3);
+      padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 600;
+      color: #f8fafc; white-space: nowrap; display: flex; flex-direction: column; align-items: center;
+    }
+    .pin-sub { font-size: 8px; color: #94a3b8; font-weight: 400; }
+    .pin-line { width: 1px; height: 20px; background: #38bdf8; margin: 0 auto; }
+    .pin-dot { width: 5px; height: 5px; border-radius: 50%; background: #38bdf8; margin: 0 auto; box-shadow: 0 0 6px #38bdf8; }
+
+    .pin-ahu .pin-bubble { border-color: #38bdf8; }
+    .pin-fan .pin-bubble { border-color: #22c55e; }
+    .pin-fan .pin-line, .pin-fan .pin-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .pin-coil .pin-bubble { border-color: #a855f7; }
+    .pin-coil .pin-line, .pin-coil .pin-dot { background: #a855f7; box-shadow: 0 0 6px #a855f7; }
+    .pin-return .pin-bubble { border-color: #f97316; }
+    .pin-return .pin-line, .pin-return .pin-dot { background: #f97316; box-shadow: 0 0 6px #f97316; }
+    .pin-chiller .pin-bubble { border-color: #2563eb; }
+    .pin-chiller .pin-line, .pin-chiller .pin-dot { background: #2563eb; box-shadow: 0 0 6px #2563eb; }
+    .pin-boiler .pin-bubble { border-color: #ef4444; }
+    .pin-boiler .pin-line, .pin-boiler .pin-dot { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+    .pin-vav .pin-bubble { border-color: #f59e0b; }
+    .pin-vav .pin-line, .pin-vav .pin-dot { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+    .pin-diffuser .pin-bubble { border-color: #06b6d4; }
+    .pin-diffuser .pin-line, .pin-diffuser .pin-dot { background: #06b6d4; box-shadow: 0 0 6px #06b6d4; }
+    .pin-filter .pin-bubble { border-color: #14b8a6; }
+    .pin-filter .pin-line, .pin-filter .pin-dot { background: #14b8a6; box-shadow: 0 0 6px #14b8a6; }
+    .pin-econ .pin-bubble { border-color: #10b981; }
+    .pin-econ .pin-line, .pin-econ .pin-dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+    #energy-badge {
+      position: absolute; top: 52px; left: 70px; z-index: 30;
+      background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);
+      border: 1px solid #1e293b; border-radius: 6px; padding: 6px 12px;
+      display: flex; gap: 14px; font-size: 11px;
+    }
+    .energy-stat { display: flex; flex-direction: column; }
+    .stat-label { color: #64748b; font-size: 9px; text-transform: uppercase; }
+    .stat-val { font-weight: 700; color: #38bdf8; font-size: 12px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div id="topbar">
+      <div class="topbar-left">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span>OpenStudio Application — RetrofitIQ Simulation Suite</span>
+        <span class="badge">EnergyPlus 25.2.0</span>
+      </div>
+      <div class="topbar-status">
+        <span class="status-dot"></span>
+        <span>Weather: Mumbai Indian Metro (EPW Attached)</span>
+        <span style="color:#64748b;">|</span>
+        <span>Simulation: 8,760 hrs Converged</span>
+      </div>
+    </div>
+
+    <div id="sidebar-left">
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span class="tooltip">Home</span></div>
+      <div class="side-icon active"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg><span class="tooltip">3D Geometry & Thermal Zones</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg><span class="tooltip">Schedules</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg><span class="tooltip">Thermal Zones</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg><span class="tooltip">HVAC AirLoops (AHU / VAV)</span></div>
+      <div class="side-icon"><svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg><span class="tooltip">Energy Results & Savings</span></div>
+    </div>
+
+    <div id="energy-badge">
+      <div class="energy-stat">
+        <span class="stat-label">Baseline Energy</span>
+        <span class="stat-val" id="stat-baseline">191.2 MWh/yr (688.3 GJ)</span>
+      </div>
+      <div class="energy-stat">
+        <span class="stat-label">RetrofitIQ VFD VAV</span>
+        <span class="stat-val" style="color:#10b981;" id="stat-retrofit">137.9 MWh/yr (-27.9%)</span>
+      </div>
+      <div class="energy-stat">
+        <span class="stat-label">Chiller COP</span>
+        <span class="stat-val" style="color:#38bdf8;">5.42 (High Eff)</span>
+      </div>
+      <div class="energy-stat">
+        <span class="stat-label">Boiler Thermal Eff</span>
+        <span class="stat-val" style="color:#f59e0b;">96.2% Condensing</span>
+      </div>
+    </div>
+
+    <div id="viewport"></div>
+
+    <!-- Interactive Component Inspector Panel -->
+    <div id="inspector-panel">
+      <div class="inspector-header">
+        <div class="inspector-title" id="insp-title">
+          <svg style="width:16px;height:16px;fill:currentColor;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <span id="insp-name">Air-Cooled Screw Chiller</span>
+        </div>
+        <span class="inspector-close" onclick="closeInspector()">&times;</span>
+      </div>
+      <div id="insp-desc" style="color:#94a3b8; font-size:11px; margin-bottom:10px;">High-efficiency central cooling plant supplying 6.7°C chilled water.</div>
+      <div class="inspector-stat-grid" id="insp-stats">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <div id="sidebar-right">
+      <div class="panel-header-tabs">
+        <div class="ptab active">Mechanical Systems</div>
+        <div class="ptab">Controls</div>
+        <div class="ptab">Energy</div>
+      </div>
+      <div class="panel-body">
+        <div class="control-row">
+          <label>Inspect Component</label>
+          <select class="control-select" id="inspect-select" onchange="onInspectSelect(this.value)">
+            <option value="">-- Select to Zoom --</option>
+            <option value="chiller">Chiller Plant</option>
+            <option value="boiler">Condensing Boiler</option>
+            <option value="economizer">Air Economizer</option>
+            <option value="filter">MERV 13 Filter</option>
+            <option value="fan">Supply Fan (VFD)</option>
+            <option value="humidifier">Steam Humidifier</option>
+            <option value="dehumidifier">Dehumidifier Module</option>
+            <option value="vav-zone1">VAV Box (Story 2)</option>
+            <option value="vav-zone2">VAV Box (Story 1)</option>
+            <option value="diffuser">Ceiling Diffuser</option>
+            <option value="damper">Motorized Dampers</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label>Render Mode</label>
+          <select class="control-select" id="render-mode">
+            <option>Thermal Zone</option>
+            <option>Space Type</option>
+            <option>Construction</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label>Show Story</label>
+          <select class="control-select" id="story-mode">
+            <option>All Stories</option>
+            <option>Story 1 (Zone 2)</option>
+            <option>Story 2 (Zone 1)</option>
+            <option>Rooftop HVAC</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label>Air Loop Mode</label>
+          <select class="control-select" id="airloop-mode">
+            <option>RetrofitIQ VFD VAV</option>
+            <option>Baseline Constant Volume</option>
+          </select>
+        </div>
+
+        <!-- Rooftop Unit Casing Transparency Control Card -->
+        <div class="control-row" style="background: rgba(56, 189, 248, 0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.28); margin-top: 10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0; font-size:12px; font-weight:600; color:#38bdf8; display:flex; align-items:center; gap:5px;">
+              <svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+              RTU Casing View
+            </label>
+            <span id="casing-opacity-val" style="color:#38bdf8; font-size:11px; font-weight:700;">Transparent (20%)</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span style="font-size:10px; color:#94a3b8;">X-Ray</span>
+            <input type="range" id="slider-ahu-opacity" min="0" max="100" value="20" style="flex:1; accent-color:#38bdf8; cursor:pointer;">
+            <span style="font-size:10px; color:#94a3b8;">Solid</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <button id="btn-toggle-casing" class="cam-btn" style="padding:4px 10px; font-size:11px; background:#0284c7; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:500;" onclick="toggleAhuCasingMode()">Toggle Opaque / X-Ray</button>
+            <label style="font-size:11px; color:#94a3b8; display:flex; align-items:center; gap:4px; cursor:pointer;">
+              <input type="checkbox" id="chk-ahu-edges" checked style="accent-color:#38bdf8;"> CAD Edges
+            </label>
+          </div>
+        </div>
+
+        <div class="section-title">Component Filters</div>
+        <div class="filter-grid">
+          <label class="filter-item" style="color:#38bdf8; font-weight:600;"><input type="checkbox" id="chk-ahu-casing" checked> RTU Casing</label>
+          <label class="filter-item"><input type="checkbox" id="chk-chiller" checked> Chiller Plant</label>
+          <label class="filter-item"><input type="checkbox" id="chk-boiler" checked> Boiler Plant</label>
+          <label class="filter-item"><input type="checkbox" id="chk-ahu-internals" checked> AHU Internals</label>
+          <label class="filter-item"><input type="checkbox" id="chk-vav" checked> VAV Boxes</label>
+          <label class="filter-item"><input type="checkbox" id="chk-diffusers" checked> Diffusers</label>
+          <label class="filter-item"><input type="checkbox" id="chk-dampers" checked> Dampers</label>
+          <label class="filter-item"><input type="checkbox" id="chk-ducts" checked> HVAC Ducts</label>
+          <label class="filter-item"><input type="checkbox" id="chk-hydronics" checked> Hydronic Pipes</label>
+          <label class="filter-item"><input type="checkbox" id="chk-flow" checked> Airflow Streams</label>
+          <label class="filter-item"><input type="checkbox" id="chk-pins" checked> Callout Pins</label>
+          <label class="filter-item"><input type="checkbox" id="chk-cutaway" checked> Cutaway Walls</label>
+          <label class="filter-item"><input type="checkbox" id="chk-roof" checked> Show Roofs</label>
+        </div>
+
+        <div class="section-title">Camera Presets</div>
+        <div class="btn-grid">
+          <button class="cam-btn" onclick="setCameraView('iso')">Isometric Overview</button>
+          <button class="cam-btn" onclick="setCameraView('ahu')">Rooftop AHU</button>
+          <button class="cam-btn" style="background:linear-gradient(135deg, #0284c7, #0369a1); border-color:#38bdf8; color:#fff; font-weight:600;" onclick="viewInsideAHU()">🔬 Inside Rooftop AHU</button>
+          <button class="cam-btn" onclick="setCameraView('chiller')">Chiller Plant</button>
+          <button class="cam-btn" onclick="setCameraView('boiler')">Boiler Plant</button>
+          <button class="cam-btn" onclick="setCameraView('zone1')">Story 2 (Zone 1)</button>
+          <button class="cam-btn" onclick="setCameraView('zone2')">Story 1 (Zone 2)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="legend-card">
+      <div class="legend-title">HVAC Systems & Loops</div>
+      <div class="legend-item"><div class="legend-box" style="background:#2563eb;"></div> Chiller (CHWS 6.7°C / Blue)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#ef4444;"></div> Boiler (HWS 60°C / Red)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#10b981;"></div> Economizer (Air Intake)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#14b8a6;"></div> Air Filter (MERV 13 Bank)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#f97316;"></div> Motorized Dampers & Actuators</div>
+      <div class="legend-item"><div class="legend-box" style="background:#0284c7;"></div> Supply Plug Fan (VFD Driven)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#38bdf8;"></div> Steam Humidifier & Dehumidifier</div>
+      <div class="legend-item"><div class="legend-box" style="background:#f59e0b;"></div> VAV Terminal Boxes (Zone Reheat)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#06b6d4;"></div> 4-Way Supply Air Diffusers</div>
+      <div class="legend-item"><div class="legend-box" style="background:#ea580c;"></div> Return Air Plenum Duct</div>
+    </div>
+
+    <div id="brand-card">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5c0 2.65 2.15 4.5 4.5 4.5.64 0 1.25-.13 1.81-.37C11.5 15.5 14 11 17 8z"/></svg>
+      </div>
+      <div class="brand-text">
+        <h3>RetrofitIQ</h3>
+        <p>Smarter Buildings. Greener Tomorrow.</p>
+      </div>
+    </div>
+
+    <div id="callouts-container"></div>
+  </div>
+
+  <script>
+    // --- SCENE SETUP ---
+    const container = document.getElementById('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x7da4bd);
+    scene.fog = new THREE.FogExp2(0x7da4bd, 0.007);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.5, 1200);
+    camera.position.set(42, 28, 42);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 5, 0);
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.70);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.4);
+    sunLight.position.set(35, 55, 30);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 5;
+    sunLight.shadow.camera.far = 130;
+    sunLight.shadow.camera.left = -32;
+    sunLight.shadow.camera.right = 32;
+    sunLight.shadow.camera.top = 32;
+    sunLight.shadow.camera.bottom = -32;
+    sunLight.shadow.bias = -0.0005;
+    scene.add(sunLight);
+
+    const fillLight = new THREE.DirectionalLight(0x90c5f0, 0.45);
+    fillLight.position.set(-30, 20, -30);
+    scene.add(fillLight);
+
+    // --- GROUPS ---
+    const buildingGroup = new THREE.Group();
+    const cutawayWallsGroup = new THREE.Group();
+    const solidWallsGroup = new THREE.Group();
+    const roofGroup = new THREE.Group();
+    const floorsGroup = new THREE.Group();
+    const furnitureGroup = new THREE.Group();
+    const zonesGroup = new THREE.Group();
+    
+    // HVAC GROUPS
+    const hvacGroup = new THREE.Group();
+    const ahuCasingGroup = new THREE.Group();
+    const chillerGroup = new THREE.Group();
+    const boilerGroup = new THREE.Group();
+    const ahuInternalsGroup = new THREE.Group();
+    const vavGroup = new THREE.Group();
+    const diffusersGroup = new THREE.Group();
+    const dampersGroup = new THREE.Group();
+    const hydronicsGroup = new THREE.Group();
+
+    scene.add(buildingGroup);
+    buildingGroup.add(
+      cutawayWallsGroup, solidWallsGroup, roofGroup, floorsGroup, 
+      furnitureGroup, zonesGroup, hvacGroup, ahuCasingGroup, chillerGroup, boilerGroup,
+      ahuInternalsGroup, vavGroup, diffusersGroup, dampersGroup, hydronicsGroup
+    );
+
+    // Dynamic animation components collection
+    const rotatingFans = [];
+    const rotatingPlumes = [];
+
+    // --- GROUND & SURROUNDINGS ---
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.9 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const lawnMat = new THREE.MeshStandardMaterial({ color: 0x3d6634, roughness: 0.85 });
+    const lawn = new THREE.Mesh(new THREE.PlaneGeometry(64, 52), lawnMat);
+    lawn.rotation.x = -Math.PI / 2;
+    lawn.position.set(0, 0.02, 0);
+    lawn.receiveShadow = true;
+    scene.add(lawn);
+
+    const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x2c3338, roughness: 0.8 });
+    const asphalt = new THREE.Mesh(new THREE.PlaneGeometry(48, 32), asphaltMat);
+    asphalt.rotation.x = -Math.PI / 2;
+    asphalt.position.set(-6, 0.04, 25);
+    asphalt.receiveShadow = true;
+    scene.add(asphalt);
+
+    function createTree(x, z, scale=1) {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2*scale, 0.3*scale, 2.5*scale, 8),
+        new THREE.MeshStandardMaterial({ color: 0x5c4033 })
+      );
+      trunk.position.y = 1.25 * scale;
+      trunk.castShadow = true;
+      const foliage = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(1.5*scale, 1),
+        new THREE.MeshStandardMaterial({ color: 0x2e5c2e, roughness: 0.7 })
+      );
+      foliage.position.y = 2.8 * scale;
+      foliage.castShadow = true;
+      tree.add(trunk, foliage);
+      tree.position.set(x, 0, z);
+      scene.add(tree);
+    }
+    createTree(-18, 12, 1.2);
+    createTree(-21, 6, 1.1);
+    createTree(-20, -5, 1.4);
+    createTree(-17, -15, 1.3);
+    createTree(18, -12, 1.2);
+    createTree(19, 2, 1.3);
+
+    // --- BUILDING SHELL DIMENSIONS ---
+    const bW = 22, bD = 18, storyH = 4.5, totalH = storyH * 2;
+    const slabThick = 0.35;
+
+    const slabMat = new THREE.MeshStandardMaterial({ color: 0xd8dcd6, roughness: 0.4 });
+    const f1Slab = new THREE.Mesh(new THREE.BoxGeometry(bW + 1, slabThick, bD + 1), slabMat);
+    f1Slab.position.set(0, slabThick/2, 0);
+    f1Slab.receiveShadow = true;
+    floorsGroup.add(f1Slab);
+
+    const f2Slab = new THREE.Mesh(new THREE.BoxGeometry(bW, slabThick, bD), slabMat);
+    f2Slab.position.set(0, storyH, 0);
+    f2Slab.receiveShadow = true;
+    f2Slab.castShadow = true;
+    floorsGroup.add(f2Slab);
+
+    const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.8, slabThick, bD + 0.8), slabMat);
+    roofSlab.position.set(0, totalH, 0);
+    roofSlab.castShadow = true;
+    roofGroup.add(roofSlab);
+
+    const parapetMat = new THREE.MeshStandardMaterial({ color: 0x8a929a });
+    const parapetH = 0.8;
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.8, parapetH, 0.3), parapetMat);
+    p1.position.set(0, totalH + parapetH/2, -bD/2 - 0.25);
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, parapetH, bD + 0.8), parapetMat);
+    p2.position.set(-bW/2 - 0.25, totalH + parapetH/2, 0);
+    roofGroup.add(p1, p2);
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xb58b68, roughness: 0.6 });
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(bW, totalH, 0.4), wallMat);
+    backWall.position.set(0, totalH/2, -bD/2);
+    backWall.castShadow = true;
+    solidWallsGroup.add(backWall);
+
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, totalH, bD), wallMat);
+    leftWall.position.set(-bW/2, totalH/2, 0);
+    leftWall.castShadow = true;
+    solidWallsGroup.add(leftWall);
+
+    const colMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3 });
+    function addColumn(x, z) {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(0.6, totalH, 0.6), colMat);
+      col.position.set(x, totalH/2, z);
+      col.castShadow = true;
+      buildingGroup.add(col);
+    }
+    addColumn(-bW/2 + 0.3, bD/2 - 0.3);
+    addColumn(bW/2 - 0.3, -bD/2 + 0.3);
+    addColumn(-bW/2 + 0.3, -bD/2 + 0.3);
+
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0x88ccff, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.1,
+      transmission: 0.85, ior: 1.5, reflectivity: 0.9, depthWrite: false
+    });
+    const cutawayFront = new THREE.Mesh(new THREE.PlaneGeometry(bW, totalH), glassMat);
+    cutawayFront.position.set(0, totalH/2, bD/2);
+    const cutawayRight = new THREE.Mesh(new THREE.PlaneGeometry(bD, totalH), glassMat);
+    cutawayRight.position.set(bW/2, totalH/2, 0);
+    cutawayRight.rotation.y = Math.PI/2;
+    cutawayWallsGroup.add(cutawayFront, cutawayRight);
+
+    // --- THERMAL ZONES ---
+    const zone1VolMat = new THREE.MeshStandardMaterial({
+      color: 0x06b6d4, transparent: true, opacity: 0.12, roughness: 0.2, side: THREE.BackSide, depthWrite: false
+    });
+    const zone1Mesh = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.8, storyH - 0.6, bD - 0.8), zone1VolMat);
+    zone1Mesh.position.set(0, storyH + storyH/2 - 0.1, 0);
+    zonesGroup.add(zone1Mesh);
+
+    const zone2VolMat = new THREE.MeshStandardMaterial({
+      color: 0xec4899, transparent: true, opacity: 0.12, roughness: 0.2, side: THREE.BackSide, depthWrite: false
+    });
+    const zone2Mesh = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.8, storyH - 0.6, bD - 0.8), zone2VolMat);
+    zone2Mesh.position.set(0, storyH/2 + 0.1, 0);
+    zonesGroup.add(zone2Mesh);
+
+    // --- OFFICE WORKSTATIONS ---
+    const deskMat = new THREE.MeshStandardMaterial({ color: 0x8a7058, roughness: 0.5 });
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+    const screenMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 });
+
+    function createWorkstation(x, y, z) {
+      const ws = new THREE.Group();
+      const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 1.4), deskMat);
+      top.position.y = 0.75;
+      const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg1.position.set(-1.1, 0.375, -0.6);
+      const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg2.position.set(1.1, 0.375, -0.6);
+      const leg3 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg3.position.set(-1.1, 0.375, 0.6);
+      const leg4 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.75), chairMat);
+      leg4.position.set(1.1, 0.375, 0.6);
+      const mon = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.05), screenMat);
+      mon.position.set(0, 1.1, -0.3);
+      const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), chairMat);
+      chairSeat.position.set(0, 0.45, 0.45);
+      const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.08), chairMat);
+      chairBack.position.set(0, 0.7, 0.68);
+      ws.add(top, leg1, leg2, leg3, leg4, mon, chairSeat, chairBack);
+      ws.position.set(x, y, z);
+      furnitureGroup.add(ws);
+    }
+    createWorkstation(-5, storyH + slabThick, 3);
+    createWorkstation(-1, storyH + slabThick, 3);
+    createWorkstation(4, storyH + slabThick, 3);
+    createWorkstation(-5, storyH + slabThick, -3);
+    createWorkstation(-1, storyH + slabThick, -3);
+    createWorkstation(4, storyH + slabThick, -3);
+
+    createWorkstation(-5, slabThick, 3);
+    createWorkstation(-1, slabThick, 3);
+    createWorkstation(4, slabThick, 3);
+    createWorkstation(-5, slabThick, -3);
+    createWorkstation(-1, slabThick, -3);
+    createWorkstation(4, slabThick, -3);
+
+    // ==========================================
+    // 1. CENTRAL CHILLER PLANT (ROOFTOP)
+    // ==========================================
+    const chX = -5.5, chY = totalH + slabThick/2 + 0.1, chZ = -4.0;
+    function buildChiller() {
+      const chiller = new THREE.Group();
+      chiller.position.set(chX, chY, chZ);
+
+      // Vibration pad
+      const padMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.25, 3.2), padMat);
+      pad.position.y = 0.125;
+      chiller.add(pad);
+
+      // Evaporator shell-and-tube barrel (Dark Blue)
+      const barrelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.7, roughness: 0.3 });
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 4.4, 16), barrelMat);
+      barrel.rotation.z = Math.PI / 2;
+      barrel.position.set(0, 0.75, 0.7);
+      chiller.add(barrel);
+
+      // Twin screw compressor cylinders
+      const compMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.2 });
+      const comp1 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.4, 16), compMat);
+      comp1.rotation.z = Math.PI / 2;
+      comp1.position.set(-1.0, 1.5, 0.7);
+      const comp2 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.4, 16), compMat);
+      comp2.rotation.z = Math.PI / 2;
+      comp2.position.set(1.0, 1.5, 0.7);
+      chiller.add(comp1, comp2);
+
+      // V-Bank air-cooled condenser coils (Aluminum fins)
+      const coilFinMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.6, roughness: 0.4 });
+      const coilLeft = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.6, 0.2), coilFinMat);
+      coilLeft.position.set(0, 1.6, -0.8);
+      coilLeft.rotation.x = 0.25;
+      const coilRight = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.6, 0.2), coilFinMat);
+      coilRight.position.set(0, 1.6, -0.1);
+      coilRight.rotation.x = -0.25;
+      chiller.add(coilLeft, coilRight);
+
+      // Condenser top axial fans (spinning)
+      const fanCowlingMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+      const bladeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.4 });
+
+      for (let i = -1.2; i <= 1.2; i += 2.4) {
+        const cowl = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.35, 16, 1, true), fanCowlingMat);
+        cowl.position.set(i, 2.45, -0.45);
+        chiller.add(cowl);
+
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.1, 12), compMat);
+        hub.position.set(i, 2.45, -0.45);
+        const blades = new THREE.Group();
+        for (let b = 0; b < 4; b++) {
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.15), bladeMat);
+          blade.rotation.y = (b * Math.PI) / 2;
+          blade.position.set(Math.cos(b * Math.PI / 2) * 0.26, 0, Math.sin(b * Math.PI / 2) * 0.26);
+          blades.add(blade);
+        }
+        hub.add(blades);
+        chiller.add(hub);
+        rotatingFans.push({ mesh: hub, speed: 0.08 });
+      }
+
+      // Control panel & digital screen
+      const cpMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      const cp = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.3), cpMat);
+      cp.position.set(2.1, 1.2, 0.8);
+      const cpScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.4), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+      cpScreen.position.set(2.1, 1.3, 0.96);
+      chiller.add(cp, cpScreen);
+
+      chillerGroup.add(chiller);
+    }
+    buildChiller();
+
+    // ==========================================
+    // 2. CONDENSING BOILER PLANT (ROOFTOP)
+    // ==========================================
+    const boX = -5.5, boY = totalH + slabThick/2 + 0.1, boZ = 3.5;
+    function buildBoiler() {
+      const boiler = new THREE.Group();
+      boiler.position.set(boX, boY, boZ);
+
+      // Boiler cabinet (Ruby/Crimson red industrial powder coat)
+      const boilerBodyMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, metalness: 0.4, roughness: 0.4 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 2.0), boilerBodyMat);
+      body.position.set(0, 1.1, 0);
+      body.castShadow = true;
+      boiler.add(body);
+
+      // Stainless steel flue stack (Exhaust chimney)
+      const stackMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9, roughness: 0.2 });
+      const flue = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 2.4, 16), stackMat);
+      flue.position.set(-0.6, 2.9, 0);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.25, 16), stackMat);
+      cap.position.set(-0.6, 4.15, 0);
+      boiler.add(flue, cap);
+
+      // Gas burner assembly / gas train pipe
+      const gasTrainMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.5 });
+      const gasPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 12), gasTrainMat);
+      gasPipe.rotation.x = Math.PI / 2;
+      gasPipe.position.set(0.7, 0.6, 1.2);
+      boiler.add(gasPipe);
+
+      // Expansion tank (Crimson cylinder)
+      const expTank = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.0, 16), boilerBodyMat);
+      expTank.position.set(1.6, 0.9, 0);
+      boiler.add(expTank);
+
+      // Boiler controller & pressure gauge
+      const bGauge = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+      bGauge.rotation.x = Math.PI / 2;
+      bGauge.position.set(0.3, 1.6, 1.03);
+      boiler.add(bGauge);
+
+      boilerGroup.add(boiler);
+    }
+    buildBoiler();
+
+    // ==========================================
+    // 3. HYDRONIC PIPING SYSTEM (CHW & HW LOOPS)
+    // ==========================================
+    const ahuX = 1.0, ahuY = totalH + slabThick/2 + 0.1, ahuZ = -3.0;
+
+    const chwSupplyMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, metalness: 0.5, roughness: 0.2, emissive: 0x1e3a8a, emissiveIntensity: 0.5 });
+    const chwReturnMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.5, roughness: 0.2, emissive: 0x0284c7, emissiveIntensity: 0.4 });
+    const hwSupplyMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.5, roughness: 0.2, emissive: 0x991b1b, emissiveIntensity: 0.5 });
+    const hwReturnMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.5, roughness: 0.2, emissive: 0xb45309, emissiveIntensity: 0.4 });
+
+    function createPipeSegment(p1, p2, radius, mat) {
+      const v1 = new THREE.Vector3(...p1);
+      const v2 = new THREE.Vector3(...p2);
+      const dist = v1.distanceTo(v2);
+      const geom = new THREE.CylinderGeometry(radius, radius, dist, 10);
+      const mesh = new THREE.Mesh(geom, mat);
+      const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+      mesh.position.copy(mid);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v2.clone().sub(v1).normalize());
+      hydronicsGroup.add(mesh);
+      return mesh;
+    }
+
+    // Chilled Water Loop (Chiller -> AHU Cooling Coil)
+    createPipeSegment([chX + 2.0, chY + 0.7, chZ + 0.7], [ahuX - 2.5, chY + 0.7, chZ + 0.7], 0.12, chwSupplyMat);
+    createPipeSegment([ahuX - 2.5, chY + 0.7, chZ + 0.7], [ahuX - 2.5, chY + 0.7, ahuZ + 0.2], 0.12, chwSupplyMat);
+    createPipeSegment([ahuX - 2.5, chY + 0.7, ahuZ + 0.2], [ahuX - 1.2, chY + 0.7, ahuZ + 0.2], 0.12, chwSupplyMat);
+
+    createPipeSegment([ahuX - 1.2, chY + 1.2, ahuZ - 0.2], [ahuX - 2.8, chY + 1.2, ahuZ - 0.2], 0.12, chwReturnMat);
+    createPipeSegment([ahuX - 2.8, chY + 1.2, ahuZ - 0.2], [ahuX - 2.8, chY + 1.2, chZ + 0.3], 0.12, chwReturnMat);
+    createPipeSegment([ahuX - 2.8, chY + 1.2, chZ + 0.3], [chX + 2.0, chY + 1.2, chZ + 0.3], 0.12, chwReturnMat);
+
+    // Hot Water Loop (Boiler -> AHU Heating Coil & VAV Reheat)
+    createPipeSegment([boX + 1.2, boY + 0.9, boZ], [ahuX - 0.2, boY + 0.9, boZ], 0.10, hwSupplyMat);
+    createPipeSegment([ahuX - 0.2, boY + 0.9, boZ], [ahuX - 0.2, boY + 0.9, ahuZ + 0.2], 0.10, hwSupplyMat);
+    createPipeSegment([ahuX - 0.2, boY + 0.9, ahuZ + 0.2], [ahuX - 0.2, ahuY + 0.9, ahuZ + 0.2], 0.10, hwSupplyMat);
+
+    createPipeSegment([ahuX - 0.4, boY + 1.3, ahuZ - 0.2], [ahuX - 0.4, boY + 1.3, boZ - 0.4], 0.10, hwReturnMat);
+    createPipeSegment([ahuX - 0.4, boY + 1.3, boZ - 0.4], [boX + 1.2, boY + 1.3, boZ - 0.4], 0.10, hwReturnMat);
+
+    // ==========================================
+    // 4. AIR HANDLING UNIT (AHU) WITH ADVANCED INTERNALS
+    // ==========================================
+    // High-tech AHU Casing material with realistic semi-transparent glass/acrylic or solid metal finish
+    const ahuHousingMat = new THREE.MeshPhysicalMaterial({
+      color: 0xa8c4e0,
+      metalness: 0.15,
+      roughness: 0.18,
+      transparent: true,
+      opacity: 0.20, // Default 20% opacity (80% transparent) so internals are instantly visible
+      transmission: 0.70,
+      ior: 1.45,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+
+    // Rooftop Structural Skid & Mounting Curb Rails (Remains solidly anchored on roof)
+    const skidMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.4 });
+    const curbRail1 = new THREE.Mesh(new THREE.BoxGeometry(11.8, 0.22, 0.25), skidMat);
+    curbRail1.position.set(ahuX, ahuY + 0.11, ahuZ - 1.8);
+    const curbRail2 = new THREE.Mesh(new THREE.BoxGeometry(11.8, 0.22, 0.25), skidMat);
+    curbRail2.position.set(ahuX, ahuY + 0.11, ahuZ + 1.8);
+    ahuCasingGroup.add(curbRail1, curbRail2);
+    
+    // Cross beams & heavy-duty neoprene vibration isolation pads
+    const padMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 });
+    for (let px = -5.2; px <= 5.2; px += 2.6) {
+      const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 3.6), skidMat);
+      crossBeam.position.set(ahuX + px, ahuY + 0.11, ahuZ);
+      const isoPad1 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.12, 12), padMat);
+      isoPad1.position.set(ahuX + px, ahuY + 0.06, ahuZ - 1.8);
+      const isoPad2 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.12, 12), padMat);
+      isoPad2.position.set(ahuX + px, ahuY + 0.06, ahuZ + 1.8);
+      ahuCasingGroup.add(crossBeam, isoPad1, isoPad2);
+    }
+
+    // Interior Galvanized Floor Sheet (thin tray so equipment sits on it without blocking view)
+    const ahuFloorMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.5, roughness: 0.5 });
+    const ahuFloor = new THREE.Mesh(new THREE.BoxGeometry(11.5, 0.06, 3.75), ahuFloorMat);
+    ahuFloor.position.set(ahuX, ahuY + 0.22, ahuZ);
+    ahuFloor.receiveShadow = true;
+    ahuCasingGroup.add(ahuFloor);
+
+    // AHU Outer Enclosure Casing Shell (Controlled by transparency slider & toggle)
+    const ahuBase = new THREE.Mesh(new THREE.BoxGeometry(11.5, 2.3, 3.8), ahuHousingMat);
+    ahuBase.position.set(ahuX, ahuY + 1.15, ahuZ);
+    ahuBase.castShadow = true;
+    ahuCasingGroup.add(ahuBase);
+
+    // Architectural CAD / BIM Edge Wireframe Accent lines
+    const ahuEdgesMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.65 });
+    const ahuEdges = new THREE.LineSegments(new THREE.EdgesGeometry(ahuBase.geometry), ahuEdgesMat);
+    ahuEdges.position.copy(ahuBase.position);
+    ahuCasingGroup.add(ahuEdges);
+
+    // --- COMPONENT: AIR-SIDE ECONOMIZER & OUTDOOR AIR DAMPER ---
+    function buildEconomizer() {
+      const econ = new THREE.Group();
+      econ.position.set(ahuX - 4.2, ahuY + 1.15, ahuZ);
+
+      // Outdoor Air intake louvers
+      const louverMat = new THREE.MeshStandardMaterial({ color: 0x10b981, metalness: 0.7, roughness: 0.3 });
+      for (let y = -0.7; y <= 0.7; y += 0.2) {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 3.2), louverMat);
+        blade.position.set(-0.8, y, 0);
+        blade.rotation.z = -0.45;
+        econ.add(blade);
+      }
+
+      // Modulating Damper linkage & Belimo electric actuator
+      const actuatorMat = new THREE.MeshStandardMaterial({ color: 0xf97316 });
+      const actuatorBox = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.25), actuatorMat);
+      actuatorBox.position.set(-0.7, 0.5, 1.8);
+      econ.add(actuatorBox);
+
+      // Mixing plenum chamber
+      const chamberMat = new THREE.MeshStandardMaterial({ color: 0x059669, transparent: true, opacity: 0.2 });
+      const mixChamber = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 3.2), chamberMat);
+      mixChamber.position.set(0, 0, 0);
+      econ.add(mixChamber);
+
+      ahuInternalsGroup.add(econ);
+      dampersGroup.add(actuatorBox);
+    }
+    buildEconomizer();
+
+    // --- COMPONENT: AIR FILTER BANK (MERV 13 / HEPA) ---
+    function buildAirFilter() {
+      const filterGroup = new THREE.Group();
+      filterGroup.position.set(ahuX - 2.8, ahuY + 1.15, ahuZ + 0.2);
+
+      // V-Bank pleated filter media (Pleats)
+      const pleatMat = new THREE.MeshStandardMaterial({ color: 0xf0fdf4, roughness: 0.9 });
+      for (let z = -1.2; z <= 1.2; z += 0.4) {
+        const filterCartridge = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.8, 0.35), pleatMat);
+        filterCartridge.position.set(0, 0, z);
+        filterGroup.add(filterCartridge);
+      }
+
+      // Filter holding frame rack
+      const rackMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, metalness: 0.8 });
+      const rack = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.9, 3.0), rackMat);
+      rack.position.set(0, 0, 0);
+      rack.material.wireframe = true;
+      filterGroup.add(rack);
+
+      // Magnehelic differential pressure gauge (ΔP)
+      const gauge = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+      gauge.rotation.x = Math.PI / 2;
+      gauge.position.set(0.15, 0.8, 1.6);
+      filterGroup.add(gauge);
+
+      ahuInternalsGroup.add(filterGroup);
+    }
+    buildAirFilter();
+
+    // --- COMPONENT: DEHUMIDIFIER & CONDENSATE SYSTEM ---
+    function buildDehumidifier() {
+      const dehumGroup = new THREE.Group();
+      dehumGroup.position.set(ahuX - 2.0, ahuY + 1.15, ahuZ + 0.2);
+
+      // Desiccant rotor wheel / dehumidifier segment
+      const desiccantMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.5, roughness: 0.3 });
+      const rotor = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.25, 24), desiccantMat);
+      rotor.rotation.z = Math.PI / 2;
+      dehumGroup.add(rotor);
+
+      // Condensate drain pan & P-Trap pipe
+      const panMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.8 });
+      const pan = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 2.8), panMat);
+      pan.position.set(0.4, -0.95, 0);
+      const trap = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16, Math.PI), new THREE.MeshStandardMaterial({ color: 0x38bdf8 }));
+      trap.position.set(1.4, -1.05, 1.4);
+      dehumGroup.add(pan, trap);
+
+      ahuInternalsGroup.add(dehumGroup);
+    }
+    buildDehumidifier();
+
+    // --- COMPONENT: COOLING & HEATING COILS ---
+    const coolingCoilMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.7, roughness: 0.3, emissive: 0x1e3a8a, emissiveIntensity: 0.4 });
+    const coolingCoil = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.8, 2.8), coolingCoilMat);
+    coolingCoil.position.set(ahuX - 1.2, ahuY + 1.15, ahuZ + 0.2);
+    ahuInternalsGroup.add(coolingCoil);
+
+    const heatingCoilMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.7, roughness: 0.3, emissive: 0x991b1b, emissiveIntensity: 0.4 });
+    const heatingCoil = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.8, 2.8), heatingCoilMat);
+    heatingCoil.position.set(ahuX - 0.4, ahuY + 1.15, ahuZ + 0.2);
+    ahuInternalsGroup.add(heatingCoil);
+
+    // --- COMPONENT: STEAM HUMIDIFIER (DISPERSION MANIFOLD & GENERATOR) ---
+    const steamParticlesList = [];
+    function buildHumidifier() {
+      const humGroup = new THREE.Group();
+      humGroup.position.set(ahuX + 0.5, ahuY + 1.15, ahuZ + 0.2);
+
+      // Stainless steel dispersion manifold & vertical dispersion tubes
+      const ssMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.9, roughness: 0.1 });
+      const manifold = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 12), ssMat);
+      manifold.rotation.x = Math.PI / 2;
+      manifold.position.set(0, -0.85, 0);
+      humGroup.add(manifold);
+
+      for (let z = -0.9; z <= 0.9; z += 0.45) {
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.7, 8), ssMat);
+        tube.position.set(0, 0, z);
+        // Dispersion steam nozzles along the tube
+        for (let ny = -0.6; ny <= 0.7; ny += 0.32) {
+          const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.08, 6), ssMat);
+          nozzle.rotation.z = Math.PI / 2;
+          nozzle.position.set(0.04, ny, z);
+          humGroup.add(nozzle);
+        }
+        humGroup.add(tube);
+      }
+
+      // Steam generator canister
+      const canisterMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8, roughness: 0.2 });
+      const canister = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.75, 16), canisterMat);
+      canister.position.set(0.1, -0.6, 1.6);
+      const canisterTop = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.2, 12), ssMat);
+      canisterTop.position.set(0.1, -0.15, 1.6);
+      humGroup.add(canister, canisterTop);
+
+      // Animated rising steam vapor mist particles
+      const steamCount = 36;
+      const steamGeom = new THREE.BufferGeometry();
+      const steamPos = new Float32Array(steamCount * 3);
+      for (let i = 0; i < steamCount; i++) {
+        steamPos[i*3] = (Math.random() - 0.5) * 0.3;
+        steamPos[i*3+1] = -0.6 + Math.random() * 1.5;
+        steamPos[i*3+2] = (Math.random() - 0.5) * 1.8;
+      }
+      steamGeom.setAttribute('position', new THREE.BufferAttribute(steamPos, 3));
+      const steamMat = new THREE.PointsMaterial({
+        color: 0xe0f2fe,
+        size: 0.35,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      const steamPoints = new THREE.Points(steamGeom, steamMat);
+      humGroup.add(steamPoints);
+      steamParticlesList.push({ points: steamPoints, geom: steamGeom, count: steamCount });
+
+      ahuInternalsGroup.add(humGroup);
+    }
+    buildHumidifier();
+
+    // --- COMPONENT: SUPPLY FAN ASSEMBLY (VFD PLUG FAN) ---
+    let supplyFanBlades;
+    function buildSupplyFan() {
+      const fanGroup = new THREE.Group();
+      fanGroup.position.set(ahuX + 2.0, ahuY + 1.15, ahuZ + 0.2);
+
+      // Centrifugal Fan housing (Open scroll inlet shroud with visible interior)
+      const housingMat = new THREE.MeshStandardMaterial({ 
+        color: 0x0284c7, metalness: 0.6, roughness: 0.3, 
+        emissive: 0x0369a1, emissiveIntensity: 0.25,
+        side: THREE.DoubleSide
+      });
+      // Open-ended scroll ring so rotating blades inside are fully visible
+      const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 1.2, 24, 1, true), housingMat);
+      housing.rotation.z = Math.PI / 2;
+      
+      // Inlet bellmouth cone & safety ring
+      const inletRing = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: 0x38bdf8 }));
+      inletRing.rotation.y = Math.PI / 2;
+      inletRing.position.x = -0.6;
+
+      // Heavy-duty structural fan mounting base frame with spring isolators
+      const fanBaseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+      const fanBase = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 1.6), fanBaseMat);
+      fanBase.position.set(0.3, -0.95, 0);
+      for (let sx = -0.7; sx <= 1.3; sx += 2.0) {
+        for (let sz = -0.6; sz <= 0.6; sz += 1.2) {
+          const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.15, 8), new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.8 }));
+          spring.position.set(sx, -1.02, sz);
+          fanGroup.add(spring);
+        }
+      }
+      fanGroup.add(housing, inletRing, fanBase);
+
+      // Internal rotating backward-curved impeller blades (Electric blue)
+      supplyFanBlades = new THREE.Group();
+      const impellerHub = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.1, 16), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 }));
+      impellerHub.rotation.z = Math.PI / 2;
+      supplyFanBlades.add(impellerHub);
+
+      for (let i = 0; i < 8; i++) {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.9), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.6, roughness: 0.2 }));
+        blade.position.set(0, Math.cos(i * Math.PI / 4) * 0.58, Math.sin(i * Math.PI / 4) * 0.58);
+        blade.rotation.x = i * Math.PI / 4 + 0.3;
+        supplyFanBlades.add(blade);
+      }
+      fanGroup.add(supplyFanBlades);
+      rotatingFans.push({ mesh: supplyFanBlades, speed: 0.14 });
+
+      // Electric Motor & Drive shaft
+      const motorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
+      const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.9, 16), motorMat);
+      motor.rotation.z = Math.PI / 2;
+      motor.position.set(1.2, 0, 0);
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.4, 12), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9 }));
+      shaft.rotation.z = Math.PI / 2;
+      shaft.position.set(0.65, 0, 0);
+      fanGroup.add(motor, shaft);
+
+      // VFD (Variable Frequency Drive) Controller Enclosure
+      const vfdMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.7, roughness: 0.3 });
+      const vfdBox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.6), vfdMat);
+      vfdBox.position.set(1.2, 1.2, 1.4);
+      const vfdScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.2), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+      vfdScreen.position.set(1.2, 1.35, 1.71);
+      fanGroup.add(vfdBox, vfdScreen);
+
+      ahuInternalsGroup.add(fanGroup);
+    }
+    buildSupplyFan();
+
+    // Exhaust & Relief Section
+    const exhaustBox = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 2.4), ahuHousingMat);
+    exhaustBox.position.set(ahuX + 6.5, ahuY + 1.2, ahuZ - 1);
+    exhaustBox.castShadow = true;
+    const exhaustEdges = new THREE.LineSegments(new THREE.EdgesGeometry(exhaustBox.geometry), ahuEdgesMat);
+    exhaustEdges.position.copy(exhaustBox.position);
+    const exhaustCowl = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 1.0, 16), ahuHousingMat);
+    exhaustCowl.position.set(ahuX + 6.5, ahuY + 2.8, ahuZ - 1);
+    ahuCasingGroup.add(exhaustBox, exhaustEdges, exhaustCowl);
+
+    // Return Unit Box
+    const returnUnitBox = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.0, 2.6), ahuHousingMat);
+    returnUnitBox.position.set(ahuX + 6.5, ahuY + 1.0, ahuZ + 3.2);
+    returnUnitBox.castShadow = true;
+    const returnEdges = new THREE.LineSegments(new THREE.EdgesGeometry(returnUnitBox.geometry), ahuEdgesMat);
+    returnEdges.position.copy(returnUnitBox.position);
+    ahuCasingGroup.add(returnUnitBox, returnEdges);
+
+    // ==========================================
+    // 5. SUPPLY & RETURN DUCTWORK DISTRIBUTION
+    // ==========================================
+    const supplyDuctMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7, metalness: 0.3, roughness: 0.2, emissive: 0x0369a1, emissiveIntensity: 0.6
+    });
+    const returnDuctMat = new THREE.MeshStandardMaterial({
+      color: 0xea580c, metalness: 0.3, roughness: 0.2, emissive: 0xc2410c, emissiveIntensity: 0.6
+    });
+
+    function createDuctSegment(p1, p2, radius, mat) {
+      const v1 = new THREE.Vector3(...p1);
+      const v2 = new THREE.Vector3(...p2);
+      const dist = v1.distanceTo(v2);
+      const geom = new THREE.CylinderGeometry(radius, radius, dist, 12);
+      const mesh = new THREE.Mesh(geom, mat);
+      const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+      mesh.position.copy(mid);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v2.clone().sub(v1).normalize());
+      hvacGroup.add(mesh);
+      return mesh;
+    }
+
+    // Main Supply Vertical Riser
+    createDuctSegment([ahuX + 3.2, ahuY + 1.15, ahuZ + 0.2], [ahuX + 3.2, totalH, 0], 0.38, supplyDuctMat);
+    createDuctSegment([ahuX + 3.2, totalH, 0], [ahuX + 3.2, 2.5, 0], 0.38, supplyDuctMat);
+
+    // Story 2 Supply Duct Network (Zone 1 - Upper Floor)
+    createDuctSegment([ahuX + 3.2, totalH - 0.7, 0], [-6, totalH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([ahuX + 3.2, totalH - 0.7, 0], [7, totalH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([-3, totalH - 0.7, 0], [-3, totalH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([-3, totalH - 0.7, 0], [-3, totalH - 0.7, -4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, totalH - 0.7, 0], [4, totalH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, totalH - 0.7, 0], [4, totalH - 0.7, -4.5], 0.22, supplyDuctMat);
+
+    // Story 1 Supply Duct Network (Zone 2 - Ground Floor)
+    createDuctSegment([ahuX + 3.2, storyH - 0.7, 0], [-6, storyH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([ahuX + 3.2, storyH - 0.7, 0], [7, storyH - 0.7, 0], 0.32, supplyDuctMat);
+    createDuctSegment([-3, storyH - 0.7, 0], [-3, storyH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([-3, storyH - 0.7, 0], [-3, storyH - 0.7, -4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, storyH - 0.7, 0], [4, storyH - 0.7, 4.5], 0.22, supplyDuctMat);
+    createDuctSegment([4, storyH - 0.7, 0], [4, storyH - 0.7, -4.5], 0.22, supplyDuctMat);
+
+    // Return Ducts
+    createDuctSegment([ahuX + 6.5, ahuY + 1.0, ahuZ + 3.2], [ahuX + 6.5, totalH, 2], 0.34, returnDuctMat);
+    createDuctSegment([ahuX + 6.5, totalH, 2], [ahuX + 6.5, 1.2, 2], 0.34, returnDuctMat);
+    createDuctSegment([ahuX + 6.5, totalH - 1.2, 2], [ahuX + 3.5, totalH - 1.2, 2], 0.26, returnDuctMat);
+    createDuctSegment([ahuX + 6.5, storyH - 1.2, 2], [ahuX + 3.5, storyH - 1.2, 2], 0.26, returnDuctMat);
+
+    // ==========================================
+    // 6. VAV (VARIABLE AIR VOLUME) TERMINAL BOXES
+    // ==========================================
+    const vavBoxMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.6, roughness: 0.3 });
+    const vavActuatorMat = new THREE.MeshStandardMaterial({ color: 0xf97316 }); // Orange Belimo servo
+
+    function createVAVBox(x, y, z, rotationY=0) {
+      const vav = new THREE.Group();
+      vav.position.set(x, y, z);
+      vav.rotation.y = rotationY;
+
+      // Galvanized terminal casing
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.45, 0.6), vavBoxMat);
+      vav.add(box);
+
+      // Reheat coil section (Copper/Aluminum)
+      const reheat = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.55), new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.7 }));
+      reheat.position.set(0.4, 0, 0);
+      vav.add(reheat);
+
+      // Motorized Damper Actuator (Orange servo)
+      const actuator = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.18), vavActuatorMat);
+      actuator.position.set(-0.25, 0.25, 0.25);
+      vav.add(actuator);
+
+      // DDC digital controller module with status LED
+      const ddc = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.08), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+      ddc.position.set(0, 0, 0.32);
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+      led.position.set(0.06, 0, 0.37);
+      vav.add(ddc, led);
+
+      vavGroup.add(vav);
+      dampersGroup.add(actuator);
+      return vav;
+    }
+
+    // Install VAV boxes at branch locations
+    // Story 2 (Zone 1) VAV Boxes
+    createVAVBox(-3, totalH - 0.7, 2.0, 0);
+    createVAVBox(4, totalH - 0.7, 2.0, 0);
+    // Story 1 (Zone 2) VAV Boxes
+    createVAVBox(-3, storyH - 0.7, 2.0, 0);
+    createVAVBox(4, storyH - 0.7, 2.0, 0);
+
+    // ==========================================
+    // 7. 4-WAY SUPPLY AIR DIFFUSERS & AIR DISPERSION
+    // ==========================================
+    const diffuserMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.3, roughness: 0.2 });
+    const plumeMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8, transparent: true, opacity: 0.35, roughness: 0.1, emissive: 0x0284c7, emissiveIntensity: 0.4, depthWrite: false
+    });
+
+    function addDiffuserWithPlume(x, y, z) {
+      const diffGroup = new THREE.Group();
+      diffGroup.position.set(x, y, z);
+
+      // 4-Way louvered square plate
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.08, 0.85), diffuserMat);
+      diffGroup.add(plate);
+
+      // Inner louvers
+      const inner = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.5), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+      inner.position.y = -0.02;
+      diffGroup.add(inner);
+
+      // Flexible silver duct collar connecting to ceiling duct
+      const flexDuct = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.45, 12), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.4 }));
+      flexDuct.position.y = 0.25;
+      diffGroup.add(flexDuct);
+
+      // Downward air dispersion cone/plume
+      const plume = new THREE.Mesh(new THREE.ConeGeometry(0.75, 1.2, 16, 1, true), plumeMat);
+      plume.rotation.x = Math.PI;
+      plume.position.y = -0.65;
+      diffGroup.add(plume);
+      rotatingPlumes.push(plume);
+
+      diffusersGroup.add(diffGroup);
+    }
+
+    // Story 2 Diffusers
+    addDiffuserWithPlume(-3, totalH - 0.78, 4.5);
+    addDiffuserWithPlume(-3, totalH - 0.78, -4.5);
+    addDiffuserWithPlume(4, totalH - 0.78, 4.5);
+    addDiffuserWithPlume(4, totalH - 0.78, -4.5);
+    // Story 1 Diffusers
+    addDiffuserWithPlume(-3, storyH - 0.78, 4.5);
+    addDiffuserWithPlume(-3, storyH - 0.78, -4.5);
+    addDiffuserWithPlume(4, storyH - 0.78, 4.5);
+    addDiffuserWithPlume(4, storyH - 0.78, -4.5);
+
+    // ==========================================
+    // 8. DYNAMIC AIRFLOW PARTICLE SYSTEM
+    // ==========================================
+    const particleCount = 220;
+    const particleGeom = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleSpeeds = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      particlePositions[i*3] = ahuX + 3.2 + (Math.random() - 0.5)*0.3;
+      particlePositions[i*3+1] = 1 + Math.random() * (totalH - 1);
+      particlePositions[i*3+2] = (Math.random() - 0.5)*9;
+      particleSpeeds.push(0.04 + Math.random()*0.04);
+    }
+    particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+    const particleMat = new THREE.PointsMaterial({
+      color: 0x38bdf8, size: 0.35, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending
+    });
+    const particleSystem = new THREE.Points(particleGeom, particleMat);
+    hvacGroup.add(particleSystem);
+
+    // ==========================================
+    // 9. CALLOUT PINS (ALL REQUESTED COMPONENTS)
+    // ==========================================
+    const calloutsData = [
+      { id: 'chiller', name: 'Chiller Plant', sub: 'Air-Cooled Screw (5.42 COP)', pos: new THREE.Vector3(chX, chY + 2.8, chZ), cls: 'pin-chiller' },
+      { id: 'boiler', name: 'Boiler Plant', sub: 'Condensing 96.2% Eff', pos: new THREE.Vector3(boX, boY + 2.8, boZ), cls: 'pin-boiler' },
+      { id: 'economizer', name: 'Air Economizer', sub: 'Enthalpy Free Cooling', pos: new THREE.Vector3(ahuX - 4.2, ahuY + 2.4, ahuZ), cls: 'pin-econ' },
+      { id: 'filter', name: 'Air Filter Bank', sub: 'MERV 13 (ΔP: 145 Pa)', pos: new THREE.Vector3(ahuX - 2.8, ahuY + 2.4, ahuZ), cls: 'pin-filter' },
+      { id: 'dehumidifier', name: 'Dehumidifier', sub: 'Desiccant + Drain Trap', pos: new THREE.Vector3(ahuX - 2.0, ahuY + 2.4, ahuZ), cls: 'pin-coil' },
+      { id: 'cooling-coil', name: 'Cooling Coil', sub: 'CHW Fed (6.7°C)', pos: new THREE.Vector3(ahuX - 1.2, ahuY + 2.4, ahuZ), cls: 'pin-chiller' },
+      { id: 'humidifier', name: 'Steam Humidifier', sub: 'Dispersion Manifold', pos: new THREE.Vector3(ahuX + 0.5, ahuY + 2.4, ahuZ), cls: 'pin-coil' },
+      { id: 'fan', name: 'Supply Fan (VFD)', sub: 'Plug Fan (48.5 Hz)', pos: new THREE.Vector3(ahuX + 2.0, ahuY + 2.4, ahuZ), cls: 'pin-fan' },
+      { id: 'damper', name: 'Motorized Dampers', sub: 'Belimo Electric Actuators', pos: new THREE.Vector3(ahuX - 4.2, ahuY + 1.2, ahuZ + 1.8), cls: 'pin-return' },
+      { id: 'vav1', name: 'VAV Box', sub: 'Story 2 Terminal (850 CFM)', pos: new THREE.Vector3(-3, totalH - 0.3, 2.0), cls: 'pin-vav' },
+      { id: 'diff1', name: '4-Way Diffuser', sub: 'Ceiling Supply Plume', pos: new THREE.Vector3(-3, totalH - 1.2, 4.5), cls: 'pin-diffuser' },
+      { id: 'zone1', name: 'Zone 1 (Story 2)', sub: '24°C Comfort Band', pos: new THREE.Vector3(5, storyH + 2.2, 4), cls: 'pin-diffuser' },
+      { id: 'zone2', name: 'Zone 2 (Story 1)', sub: '24°C Comfort Band', pos: new THREE.Vector3(5, 2.2, 4), cls: 'pin-vav' }
+    ];
+
+    const calloutsContainer = document.getElementById('callouts-container');
+    const calloutElements = [];
+
+    calloutsData.forEach(c => {
+      const el = document.createElement('div');
+      el.className = `callout-pin ${c.cls}`;
+      el.innerHTML = `
+        <div class="pin-bubble">
+          <span>${c.name}</span>
+          <span class="pin-sub">${c.sub}</span>
+        </div>
+        <div class="pin-line"></div>
+        <div class="pin-dot"></div>
+      `;
+      calloutsContainer.appendChild(el);
+      calloutElements.push({ el, pos: c.pos });
+    });
+
+    function updateCallouts() {
+      const showPins = document.getElementById('chk-pins').checked;
+      if (!showPins) {
+        calloutsContainer.style.display = 'none';
+        return;
+      }
+      calloutsContainer.style.display = 'block';
+
+      const tempV = new THREE.Vector3();
+      calloutElements.forEach(item => {
+        tempV.copy(item.pos);
+        tempV.project(camera);
+
+        if (tempV.z > 1) {
+          item.el.style.opacity = '0';
+          return;
+        }
+
+        const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(tempV.y * 0.5) + 0.5) * window.innerHeight;
+
+        item.el.style.left = `${x}px`;
+        item.el.style.top = `${y}px`;
+        item.el.style.opacity = '1';
+      });
+    }
+
+    // ==========================================
+    // 10. COMPONENT INSPECTOR & TELEMETRY DATABASE
+    // ==========================================
+    const componentData = {
+      chiller: {
+        title: 'Central Chiller Plant',
+        desc: 'Air-cooled screw chiller supplying chilled water to AHU cooling coils.',
+        camera: { cx: chX + 6, cy: chY + 5, cz: chZ + 6, tx: chX, ty: chY + 1.2, tz: chZ },
+        stats: [
+          { label: 'Cooling Capacity', val: '38.5 Tons (135 kW)' },
+          { label: 'COP Efficiency', val: '5.42 High Eff', tag: 'tag-green', tagText: 'EnergyStar' },
+          { label: 'CHW Supply Temp', val: '6.7°C (44.0°F)' },
+          { label: 'CHW Return Temp', val: '12.2°C (54.0°F)' },
+          { label: 'Electric Draw', val: '24.8 kW (VFD)' },
+          { label: 'Compressor Status', val: 'Modulating (72%)', tag: 'tag-blue', tagText: 'Optimal' }
+        ]
+      },
+      boiler: {
+        title: 'High-Efficiency Condensing Boiler',
+        desc: 'Dual-fuel condensing boiler generating hot water for space heating and VAV reheat coils.',
+        camera: { cx: boX + 5, cy: boY + 5, cz: boZ + 6, tx: boX, ty: boY + 1.2, tz: boZ },
+        stats: [
+          { label: 'Thermal Efficiency', val: '96.2% Condensing', tag: 'tag-green', tagText: 'Low NOx' },
+          { label: 'Firing Rate', val: '32% Modulating' },
+          { label: 'HW Supply Temp', val: '60.0°C (140°F)' },
+          { label: 'HW Return Temp', val: '45.0°C (113°F)' },
+          { label: 'Gas Consumption', val: '3.2 m³/hr' },
+          { label: 'Flue Temp', val: '52.4°C' }
+        ]
+      },
+      economizer: {
+        title: 'Air-Side Economizer System',
+        desc: 'Integrated enthalpy economizer modulating outdoor air and return air dampers for free cooling.',
+        camera: { cx: ahuX - 4, cy: ahuY + 4, cz: ahuZ + 5, tx: ahuX - 4, ty: ahuY + 1.2, tz: ahuZ },
+        stats: [
+          { label: 'Operating Mode', val: 'Enthalpy Free Cooling', tag: 'tag-green', tagText: 'Free Cool Active' },
+          { label: 'Outdoor Air Temp', val: '19.5°C DB / 15.2°C WB' },
+          { label: 'OA Damper Position', val: '82% Open' },
+          { label: 'RA Damper Position', val: '18% Open' },
+          { label: 'Free Cooling Savings', val: '18.4 kW Chiller Off' },
+          { label: 'Relief Air Flow', val: '6,900 CFM' }
+        ]
+      },
+      filter: {
+        title: 'MERV 13 Air Filter Bank',
+        desc: 'V-bank pleated high-efficiency filtration capturing dust, pollen, and airborne particles.',
+        camera: { cx: ahuX - 2.5, cy: ahuY + 3.5, cz: ahuZ + 4.5, tx: ahuX - 2.8, ty: ahuY + 1.2, tz: ahuZ },
+        stats: [
+          { label: 'Filter Rating', val: 'MERV 13 (ASHRAE 52.2)', tag: 'tag-green', tagText: 'Clean' },
+          { label: 'Pressure Drop (ΔP)', val: '145 Pa (0.58 in. wg)' },
+          { label: 'Max Allowable ΔP', val: '250 Pa (Limit)' },
+          { label: 'Face Velocity', val: '420 FPM (2.13 m/s)' },
+          { label: 'Particulate Capture', val: '94.2% ePM1' },
+          { label: 'Service Life', val: '86% Remaining' }
+        ]
+      },
+      fan: {
+        title: 'Supply Plug Fan (VFD Driven)',
+        desc: 'Direct-drive backward-curved centrifugal plug fan with variable frequency speed modulation.',
+        camera: { cx: ahuX + 3.5, cy: ahuY + 4, cz: ahuZ + 5, tx: ahuX + 2.0, ty: ahuY + 1.2, tz: ahuZ },
+        stats: [
+          { label: 'Fan Speed', val: '48.5 Hz (1,455 RPM)', tag: 'tag-green', tagText: 'VFD Mode' },
+          { label: 'Airflow Delivery', val: '8,450 CFM (3.99 m³/s)' },
+          { label: 'Static Pressure', val: '1.85 in. w.g. (460 Pa)' },
+          { label: 'Motor Power Draw', val: '6.12 kW' },
+          { label: 'Fan Efficacy', val: '1.38 CFM/Watt' },
+          { label: 'VFD Temp', val: '41.2°C Normal' }
+        ]
+      },
+      humidifier: {
+        title: 'Steam Dispersion Humidifier',
+        desc: 'Stainless steel injection manifold maintaining 45-55% RH indoor comfort criteria.',
+        camera: { cx: ahuX + 1.5, cy: ahuY + 3.5, cz: ahuZ + 4.5, tx: ahuX + 0.5, ty: ahuY + 1.2, tz: ahuZ },
+        stats: [
+          { label: 'Steam Output Rate', val: '8.5 kg/hr' },
+          { label: 'Supply Air RH', val: '52.4% RH', tag: 'tag-blue', tagText: 'Comfort Range' },
+          { label: 'Target Setpoint', val: '50.0% RH' },
+          { label: 'Canister Current', val: '11.8 Amps' },
+          { label: 'Water Conductivity', val: '380 µS/cm' },
+          { label: 'Dispersion Efficiency', val: '99.1% Absorption' }
+        ]
+      },
+      dehumidifier: {
+        title: 'Dehumidification Module & Trap',
+        desc: 'Deep cooling coil moisture condensing stage with desiccant wheel and sealed P-trap drain.',
+        camera: { cx: ahuX - 1.5, cy: ahuY + 3.5, cz: ahuZ + 4.5, tx: ahuX - 2.0, ty: ahuY + 1.2, tz: ahuZ },
+        stats: [
+          { label: 'Moisture Removal', val: '14.2 L/hr (Condensate)' },
+          { label: 'Entering Dew Point', val: '18.2°C' },
+          { label: 'Leaving Dew Point', val: '11.4°C' },
+          { label: 'Enthalpy Drop', val: '18.5 kJ/kg' },
+          { label: 'Condensate Drain', val: 'Active P-Trap Clean', tag: 'tag-green', tagText: 'No Overflow' },
+          { label: 'Relative Humidity', val: '48% Controlled' }
+        ]
+      },
+      'vav-zone1': {
+        title: 'Story 2 VAV Terminal Box (Zone 1)',
+        desc: 'Variable air volume terminal unit with motorized Belimo actuator and hydronic reheat coil.',
+        camera: { cx: -1.0, cy: totalH + 0.5, cz: 4.5, tx: -3.0, ty: totalH - 0.7, tz: 2.0 },
+        stats: [
+          { label: 'Primary Airflow', val: '850 CFM / 1,200 Max', tag: 'tag-blue', tagText: 'Cooling Mode' },
+          { label: 'Damper Position', val: '71% Open' },
+          { label: 'Reheat Valve', val: '0% Closed (Satisfied)' },
+          { label: 'Discharge Air Temp', val: '13.8°C' },
+          { label: 'Zone Room Temp', val: '23.8°C (Set 24.0°C)' },
+          { label: 'Static Pressure', val: '0.65 in. w.g.' }
+        ]
+      },
+      'vav-zone2': {
+        title: 'Story 1 VAV Terminal Box (Zone 2)',
+        desc: 'Ground floor VAV terminal unit regulating airflow to workstation areas.',
+        camera: { cx: -1.0, cy: storyH + 0.5, cz: 4.5, tx: -3.0, ty: storyH - 0.7, tz: 2.0 },
+        stats: [
+          { label: 'Primary Airflow', val: '920 CFM / 1,400 Max', tag: 'tag-blue', tagText: 'Cooling Mode' },
+          { label: 'Damper Position', val: '65% Open' },
+          { label: 'Reheat Valve', val: '0% Closed' },
+          { label: 'Discharge Air Temp', val: '14.1°C' },
+          { label: 'Zone Room Temp', val: '24.1°C' },
+          { label: 'Static Pressure', val: '0.62 in. w.g.' }
+        ]
+      },
+      diffuser: {
+        title: '4-Way Supply Air Diffuser',
+        desc: 'Ceiling mounted aerodynamic 4-way square diffuser distributing conditioned cool air.',
+        camera: { cx: -1.5, cy: totalH - 0.2, cz: 6.0, tx: -3.0, ty: totalH - 1.2, tz: 4.5 },
+        stats: [
+          { label: 'Air Throw Distance', val: '4.2 meters (13.8 ft)' },
+          { label: 'Terminal Velocity', val: '0.25 m/s (Comfort)' },
+          { label: 'Discharge Volume', val: '215 CFM per Diffuser' },
+          { label: 'Noise Rating', val: 'NC-28 (Quiet Office)' },
+          { label: 'Louver Pattern', val: '4-Way Horizontal Blanket' },
+          { label: 'Plume Status', val: 'Laminar Cooling Flow', tag: 'tag-blue', tagText: 'Active' }
+        ]
+      },
+      damper: {
+        title: 'Motorized Control Dampers & Actuators',
+        desc: 'Opposed-blade dampers driven by fast-acting electronic rotary actuators.',
+        camera: { cx: ahuX - 3.5, cy: ahuY + 2.5, cz: ahuZ + 4.5, tx: ahuX - 4.2, ty: ahuY + 1.2, tz: ahuZ + 1.8 },
+        stats: [
+          { label: 'Actuator Type', val: 'Belimo Direct-Coupled Rotary' },
+          { label: 'Torque Rating', val: '10 Nm (88 in-lb)' },
+          { label: 'Control Signal', val: '2-10 VDC Proportional' },
+          { label: 'Blade Leakage', val: 'Class 1A Ultra-Low Leak' },
+          { label: 'Cycle Time', val: '90 seconds full stroke' },
+          { label: 'Fail-Safe Mode', val: 'Spring Return Normally Closed', tag: 'tag-orange', tagText: 'Safety Verified' }
+        ]
+      }
+    };
+
+    function onInspectSelect(key) {
+      if (!key || !componentData[key]) {
+        closeInspector();
+        return;
+      }
+      // If inspecting any AHU internal component, ensure AHU casing is transparent so user can clearly see inside!
+      if (['fan', 'humidifier', 'filter', 'economizer', 'dehumidifier'].includes(key)) {
+        if (currentAhuOpacity > 0.35) {
+          setAhuTransparency(0.20);
+        }
+      }
+      openInspector(key);
+    }
+
+    function openInspector(key) {
+      const data = componentData[key];
+      if (!data) return;
+
+      document.getElementById('insp-name').innerText = data.title;
+      document.getElementById('insp-desc').innerText = data.desc;
+
+      const statContainer = document.getElementById('insp-stats');
+      statContainer.innerHTML = '';
+
+      data.stats.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'stat-card';
+        div.innerHTML = `
+          <div class="stat-card-label">${s.label}</div>
+          <div class="stat-card-val">${s.val}</div>
+          ${s.tag ? `<span class="stat-tag ${s.tag}">${s.tagText}</span>` : ''}
+        `;
+        statContainer.appendChild(div);
+      });
+
+      document.getElementById('inspector-panel').style.display = 'block';
+
+      if (data.camera) {
+        gsapAnimateCamera(data.camera.cx, data.camera.cy, data.camera.cz, data.camera.tx, data.camera.ty, data.camera.tz);
+      }
+    }
+
+    function closeInspector() {
+      document.getElementById('inspector-panel').style.display = 'none';
+      document.getElementById('inspect-select').value = '';
+    }
+
+    // ==========================================
+    // 11. CAMERA CONTROLS & PRESETS
+    // ==========================================
+    function setCameraView(view) {
+      closeInspector();
+      if (view === 'iso') {
+        gsapAnimateCamera(42, 28, 42, 0, 5, 0);
+      } else if (view === 'ahu') {
+        gsapAnimateCamera(ahuX + 6, ahuY + 6, ahuZ + 8, ahuX + 2, ahuY + 1.5, ahuZ);
+      } else if (view === 'chiller') {
+        openInspector('chiller');
+      } else if (view === 'boiler') {
+        openInspector('boiler');
+      } else if (view === 'zone1') {
+        gsapAnimateCamera(8, storyH + 3, 16, 0, storyH + 1.5, 0);
+      } else if (view === 'zone2') {
+        gsapAnimateCamera(14, 4, 16, 0, 2, 0);
+      }
+    }
+
+    function viewInsideAHU() {
+      closeInspector();
+      setAhuTransparency(0.20); // Make sure casing is transparent
+      // Smoothly fly camera to close-up perspective overlooking AHU internal machinery
+      gsapAnimateCamera(ahuX + 4.5, ahuY + 3.2, ahuZ + 4.8, ahuX + 0.8, ahuY + 1.2, ahuZ + 0.2);
+    }
+
+    function gsapAnimateCamera(cx, cy, cz, tx, ty, tz) {
+      const startCam = camera.position.clone();
+      const startTgt = controls.target.clone();
+      const endCam = new THREE.Vector3(cx, cy, cz);
+      const endTgt = new THREE.Vector3(tx, ty, tz);
+      let progress = 0;
+
+      function step() {
+        progress += 0.05;
+        camera.position.lerpVectors(startCam, endCam, progress);
+        controls.target.lerpVectors(startTgt, endTgt, progress);
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      step();
+    }
+
+    // ==========================================
+    // RTU / AHU CASING TRANSPARENCY CONTROLLER
+    // ==========================================
+    let currentAhuOpacity = 0.20; // Default transparent (20% opacity / 80% transparent)
+
+    function setAhuTransparency(val) {
+      currentAhuOpacity = Math.max(0, Math.min(1, val));
+      const slider = document.getElementById('slider-ahu-opacity');
+      const label = document.getElementById('casing-opacity-val');
+      if (slider) slider.value = Math.round(currentAhuOpacity * 100);
+
+      if (currentAhuOpacity >= 0.98) {
+        ahuHousingMat.transparent = false;
+        ahuHousingMat.opacity = 1.0;
+        ahuHousingMat.depthWrite = true;
+        ahuHousingMat.color.setHex(0xd1d5db);
+        ahuHousingMat.metalness = 0.5;
+        ahuHousingMat.roughness = 0.3;
+        if (label) label.innerText = 'Solid (100% Opaque)';
+      } else {
+        ahuHousingMat.transparent = true;
+        ahuHousingMat.opacity = Math.max(0.04, currentAhuOpacity);
+        ahuHousingMat.depthWrite = false;
+        ahuHousingMat.color.setHex(0xa8c4e0);
+        ahuHousingMat.metalness = 0.15;
+        ahuHousingMat.roughness = 0.18;
+        if (label) {
+          const pct = Math.round(currentAhuOpacity * 100);
+          label.innerText = `Transparent (${pct}%)`;
+        }
+      }
+      ahuHousingMat.needsUpdate = true;
+    }
+
+    function toggleAhuCasingMode() {
+      if (currentAhuOpacity > 0.4) {
+        setAhuTransparency(0.18); // Turn transparent
+      } else {
+        setAhuTransparency(1.0);  // Turn solid
+      }
+    }
+
+    // ==========================================
+    // 12. FILTER & CONTROL EVENT LISTENERS
+    // ==========================================
+    document.getElementById('chk-ahu-casing').addEventListener('change', e => { ahuCasingGroup.visible = e.target.checked; });
+    document.getElementById('chk-ahu-edges').addEventListener('change', e => { ahuEdgesMat.visible = e.target.checked; });
+    document.getElementById('slider-ahu-opacity').addEventListener('input', e => {
+      setAhuTransparency(parseInt(e.target.value, 10) / 100);
+    });
+
+    document.getElementById('chk-chiller').addEventListener('change', e => { chillerGroup.visible = e.target.checked; });
+    document.getElementById('chk-boiler').addEventListener('change', e => { boilerGroup.visible = e.target.checked; });
+    document.getElementById('chk-ahu-internals').addEventListener('change', e => { ahuInternalsGroup.visible = e.target.checked; });
+    document.getElementById('chk-vav').addEventListener('change', e => { vavGroup.visible = e.target.checked; });
+    document.getElementById('chk-diffusers').addEventListener('change', e => { diffusersGroup.visible = e.target.checked; });
+    document.getElementById('chk-dampers').addEventListener('change', e => { dampersGroup.visible = e.target.checked; });
+    document.getElementById('chk-ducts').addEventListener('change', e => { hvacGroup.visible = e.target.checked; });
+    document.getElementById('chk-hydronics').addEventListener('change', e => { hydronicsGroup.visible = e.target.checked; });
+    document.getElementById('chk-cutaway').addEventListener('change', e => { cutawayWallsGroup.visible = e.target.checked; });
+    document.getElementById('chk-roof').addEventListener('change', e => { roofGroup.visible = e.target.checked; });
+
+    document.getElementById('airloop-mode').addEventListener('change', e => {
+      const mode = e.target.value;
+      if (mode === 'RetrofitIQ VFD VAV') {
+        document.getElementById('stat-retrofit').innerHTML = '137.9 MWh/yr <span style="font-size:10px;">(-27.9%)</span>';
+        supplyDuctMat.emissive.setHex(0x059669);
+        particleMat.color.setHex(0x34d399);
+      } else {
+        document.getElementById('stat-retrofit').innerHTML = '191.2 MWh/yr <span style="font-size:10px;">(Baseline)</span>';
+        supplyDuctMat.emissive.setHex(0x0369a1);
+        particleMat.color.setHex(0x38bdf8);
+      }
+    });
+
+    document.getElementById('render-mode').addEventListener('change', e => {
+      const val = e.target.value;
+      if (val === 'Thermal Zone') {
+        zone1VolMat.color.setHex(0x06b6d4);
+        zone2VolMat.color.setHex(0xec4899);
+      } else if (val === 'Space Type') {
+        zone1VolMat.color.setHex(0x3b82f6);
+        zone2VolMat.color.setHex(0x3b82f6);
+      } else {
+        zone1VolMat.color.setHex(0xf59e0b);
+        zone2VolMat.color.setHex(0xf59e0b);
+      }
+    });
+
+    document.getElementById('story-mode').addEventListener('change', e => {
+      const val = e.target.value;
+      zone1Mesh.visible = (val === 'All Stories' || val === 'Story 2 (Zone 1)');
+      zone2Mesh.visible = (val === 'All Stories' || val === 'Story 1 (Zone 2)');
+      roofGroup.visible = (val === 'All Stories' || val === 'Rooftop HVAC');
+    });
+
+    // ==========================================
+    // 13. ANIMATION LOOP
+    // ==========================================
+    let clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      // Spin supply fans, chiller axial fans
+      rotatingFans.forEach(f => {
+        if (f.mesh.rotation.z !== undefined && f.mesh.rotation.x === 0) {
+          f.mesh.rotation.z += f.speed;
+        } else {
+          f.mesh.rotation.y += f.speed;
+        }
+      });
+
+      // Animate rising steam mist from steam humidifier nozzles
+      steamParticlesList.forEach(sp => {
+        const pArr = sp.geom.attributes.position.array;
+        for (let i = 0; i < sp.count; i++) {
+          pArr[i*3 + 1] += 0.012; // rise upward
+          pArr[i*3] += (Math.random() - 0.5) * 0.005; // gentle drift
+          if (pArr[i*3 + 1] > 0.85) {
+            pArr[i*3 + 1] = -0.65;
+            pArr[i*3] = (Math.random() - 0.5) * 0.25;
+          }
+        }
+        sp.geom.attributes.position.needsUpdate = true;
+      });
+
+      // Subtle breath/pulsing on air dispersion plumes
+      const elapsed = clock.getElapsedTime();
+      rotatingPlumes.forEach(p => {
+        p.scale.x = 1.0 + Math.sin(elapsed * 3.0) * 0.06;
+        p.scale.z = 1.0 + Math.sin(elapsed * 3.0) * 0.06;
+      });
+
+      // Airflow stream particle movement
+      if (document.getElementById('chk-flow').checked && hvacGroup.visible) {
+        particleSystem.visible = true;
+        const pos = particleGeom.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+          pos[i*3 + 1] -= particleSpeeds[i] * 4.0;
+          if (pos[i*3 + 1] < 1.0) {
+            pos[i*3 + 1] = totalH;
+          }
+        }
+        particleGeom.attributes.position.needsUpdate = true;
+      } else {
+        particleSystem.visible = false;
+      }
+
+      controls.update();
+      updateCallouts();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
