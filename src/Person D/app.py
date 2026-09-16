@@ -14,12 +14,21 @@ Run with:
 
 from pathlib import Path
 from typing import Any, Dict, Optional
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 from llm_explainer import ask_retrofit_ai, build_retrofit_context
+
+from prediction.monitoring_engine import MonitoringEngine
+from prediction.realtime_simulator import RealtimeSimulator
 
 from combiner import (
     DEFAULT_WEIGHTS,
@@ -81,6 +90,12 @@ raw_total = sum(weight_values.values())
 weights_valid = round(raw_total, 2) == 1.00
 
 st.sidebar.markdown(f"**Sum of weights: `{raw_total:.2f}`** (Target: `1.00`)")
+st.sidebar.markdown("---")
+st.sidebar.subheader("📡 Monitoring")
+if st.sidebar.button("Open Real-Time Energy Monitoring", use_container_width=True):
+    st.session_state["page_view"] = "monitoring"
+    st.rerun()
+
 if weights_valid:
     st.sidebar.success("Weights sum to 1.00 — ready to run.")
 else:
@@ -406,7 +421,199 @@ if st.session_state["page_view"] == "input":
 
 
 # ===========================================================================
-# VIEW 2: DEDICATED DASHBOARD & RESULTS PAGE
+# VIEW 2: REAL-TIME ENERGY MONITORING PAGE
+# ===========================================================================
+elif st.session_state["page_view"] == "monitoring":
+    st.title("📡 RetrofitIQ — Real-Time Energy Monitoring")
+    st.caption(
+        "Telemetry Replay Prototype — the cleaned historical building dataset is replayed as "
+        "incoming readings. This demonstrates the monitoring pipeline; it is not a live sensor feed."
+    )
+
+    # Keep the trained monitoring engine inside this user's Streamlit session.
+    if "monitoring_engine" not in st.session_state:
+        with st.spinner("Loading and training the energy monitoring model..."):
+            engine = MonitoringEngine()
+            engine.load()
+            engine.train()
+        st.session_state["monitoring_engine"] = engine
+        st.session_state["monitoring_history"] = []
+        st.session_state["monitoring_simulator"] = RealtimeSimulator(
+            data=engine.data, engine=engine
+        )
+
+    engine = st.session_state["monitoring_engine"]
+    simulator = st.session_state["monitoring_simulator"]
+
+    nav1, nav2, nav3 = st.columns([1.5, 1.5, 5])
+    with nav1:
+        if st.button("← Recommendation", use_container_width=True):
+            st.session_state["page_view"] = "input"
+            st.rerun()
+    with nav2:
+        if st.button("🔄 Reset Replay", use_container_width=True):
+            simulator.reset()
+            st.session_state["monitoring_history"] = []
+            st.rerun()
+
+    st.markdown("---")
+    st.subheader("Model Performance")
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("MAE", f"{engine.predictor.metrics.get('mae', 0):.2f} kW")
+    with m2:
+        st.metric("R²", f"{engine.predictor.metrics.get('r2', 0):.3f}")
+    with m3:
+        st.metric("Tariff", f"₹{engine.predictor.tariff:.2f}/kWh")
+
+    st.info(
+        "The monitoring model estimates expected power from operating conditions. "
+        "Actual power is then compared with expected power to estimate deviation and financial impact."
+    )
+
+    st.subheader("Telemetry Replay")
+    progress = simulator.get_progress()
+    st.progress(min(progress, 1.0))
+    st.caption(f"Replay progress: {simulator.current_index:,} / {len(simulator.data):,} readings")
+
+    r1, r2 = st.columns([1.5, 5])
+    with r1:
+        next_reading = st.button(
+            "▶ Next Reading",
+            type="primary",
+            disabled=not simulator.has_next(),
+            use_container_width=True,
+        )
+    with r2:
+        if simulator.has_next():
+            preview_row = simulator.data.iloc[simulator.current_index]
+            preview_time = preview_row.get("date", "")
+            st.caption(f"Next telemetry timestamp: **{preview_time}**")
+        else:
+            st.caption("Replay complete. Press Reset Replay to start again.")
+
+    if next_reading:
+        result = simulator.next_reading()
+        if result is not None:
+            st.session_state["monitoring_history"].append(result)
+
+    history = st.session_state.get("monitoring_history", [])
+    if history:
+        current = history[-1]
+
+        st.markdown("---")
+        st.subheader("Current Energy Condition")
+
+        # Defensive handling in case an older replay result contains NO_DATA.
+        actual_power = current.get("actual_power_kw")
+        expected_power = current.get("expected_power_kw")
+        deviation = current.get("power_deviation_percent")
+        expected_cost = current.get("expected_cost_inr")
+        actual_cost = current.get("actual_cost_inr")
+        excess = current.get("excess_cost_inr")
+
+        if current.get("status") == "NO_DATA" or actual_power is None:
+            st.warning("This telemetry reading does not contain a valid power measurement.")
+            k1, k2, k3, k4 = st.columns(4)
+            with k1:
+                st.metric("Actual Power", "N/A")
+            with k2:
+                st.metric("Expected Power", "N/A")
+            with k3:
+                st.metric("Deviation", "N/A")
+            with k4:
+                st.metric("Status", current.get("status", "NO_DATA"))
+        else:
+            k1, k2, k3, k4 = st.columns(4)
+            with k1:
+                st.metric("Actual Power", f"{float(actual_power):.2f} kW")
+            with k2:
+                st.metric("Expected Power", f"{float(expected_power):.2f} kW")
+            with k3:
+                st.metric("Deviation", f"{float(deviation):+.2f}%")
+            with k4:
+                st.metric("Status", current.get("status", "NORMAL"))
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Expected Hourly Cost", f"₹{float(expected_cost):,.2f}")
+            with c2:
+                st.metric("Actual Hourly Cost", f"₹{float(actual_cost):,.2f}")
+            with c3:
+                label = "Excess Cost" if float(excess) >= 0 else "Saved Cost"
+                st.metric(
+                    label,
+                    f"₹{abs(float(excess)):,.2f}",
+                    delta=f"₹{float(excess):+,.2f}",
+                )
+
+        alert = current["alert"]
+        severity = alert.get("severity", "NORMAL")
+        if severity == "CRITICAL":
+            st.error(f"**{alert['title']}**\n\n{alert['message']}\n\n**Action:** {alert['action']}")
+        elif severity == "WARNING":
+            st.warning(f"**{alert['title']}**\n\n{alert['message']}\n\n**Action:** {alert['action']}")
+        elif severity == "WATCH":
+            st.warning(f"**{alert['title']}**\n\n{alert['message']}\n\n**Action:** {alert['action']}")
+        elif severity == "INFO":
+            st.info(f"**{alert['title']}**\n\n{alert['message']}\n\n**Action:** {alert['action']}")
+        elif severity == "NO_DATA":
+            st.error(f"**{alert['title']}**\n\n{alert['message']}\n\n**Action:** {alert['action']}")
+        else:
+            st.success(f"**{alert['title']}**\n\n{alert['message']}\n\n**Action:** {alert['action']}")
+
+        if current.get("persistent"):
+            st.warning(
+                f"Persistent deviation detected: {current['consecutive_abnormal']} consecutive abnormal readings."
+            )
+
+        st.markdown("---")
+        st.subheader("Actual vs Expected Energy Trend")
+        chart_rows = []
+        for item in history:
+            if item["status"] == "NO_DATA":
+                continue
+            chart_rows.extend([
+                {"Timestamp": item["timestamp"], "Metric": "Actual Power", "Power (kW)": item["actual_power_kw"]},
+                {"Timestamp": item["timestamp"], "Metric": "Expected Power", "Power (kW)": item["expected_power_kw"]},
+            ])
+        chart_df = pd.DataFrame(chart_rows)
+        if not chart_df.empty:
+            chart = (
+                alt.Chart(chart_df)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X("Timestamp:T", title="Time"),
+                    y=alt.Y("Power (kW):Q", title="Power (kW)"),
+                    color=alt.Color("Metric:N", title="Metric"),
+                    tooltip=[
+                        alt.Tooltip("Timestamp:T", title="Time"),
+                        alt.Tooltip("Metric:N", title="Metric"),
+                        alt.Tooltip("Power (kW):Q", title="Power", format=".2f"),
+                    ],
+                )
+                .properties(height=400)
+            )
+            st.altair_chart(chart, use_container_width=True)
+
+        st.subheader("Monitoring History")
+        history_df = pd.DataFrame(history)
+        history_display = history_df[[
+            "timestamp", "actual_power_kw", "expected_power_kw",
+            "power_deviation_percent", "status", "excess_cost_inr",
+            "persistent",
+        ]].copy()
+        history_display.columns = [
+            "Timestamp", "Actual kW", "Expected kW", "Deviation %",
+            "Status", "Excess / Saved Cost (INR)", "Persistent",
+        ]
+        st.dataframe(history_display, use_container_width=True, hide_index=True)
+    else:
+        st.info("Press **Next Reading** to begin the telemetry replay.")
+
+
+# ===========================================================================
+# VIEW 3: DEDICATED DASHBOARD & RESULTS PAGE
 # ===========================================================================
 elif st.session_state["page_view"] == "dashboard":
     results_df: pd.DataFrame = st.session_state.get("results_df")
@@ -987,6 +1194,10 @@ elif st.session_state["page_view"] == "dashboard":
                 st.session_state["user_inputs"] = {}
                 st.session_state["results_df"] = None
                 st.session_state["page_view"] = "input"
+                st.rerun()
+        with b_col3:
+            if st.button("📡 Energy Monitoring", type="secondary", use_container_width=True):
+                st.session_state["page_view"] = "monitoring"
                 st.rerun()
     else:
         st.warning("No recommendations calculated. Click 'Back to Building Inputs' to configure.")
